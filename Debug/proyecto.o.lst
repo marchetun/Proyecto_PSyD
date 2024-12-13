@@ -1,0 +1,1277 @@
+   1              		.cpu arm7tdmi
+   2              		.fpu softvfp
+   3              		.eabi_attribute 20, 1
+   4              		.eabi_attribute 21, 1
+   5              		.eabi_attribute 23, 3
+   6              		.eabi_attribute 24, 1
+   7              		.eabi_attribute 25, 1
+   8              		.eabi_attribute 26, 1
+   9              		.eabi_attribute 30, 6
+  10              		.eabi_attribute 18, 4
+  11              		.file	"proyecto.c"
+  21              	.Ltext0:
+  22              		.file 1 "../proyecto.c"
+ 2145              		.align	2
+ 2146              		.global	main
+ 2148              	main:
+ 2149              	.LFB0:
+   1:../proyecto.c **** /*-------------------------------------------------------------------
+   2:../proyecto.c **** **
+   3:../proyecto.c **** **  Aplicacion demo bajo un kernel de planificacion no expropiativo
+   4:../proyecto.c **** **  de tareas coopertativas:
+   5:../proyecto.c **** **    - Inicialmente espera la pulsacion de la pantalla, si se 
+   6:../proyecto.c **** **      pulsa la tecla F (que emula la introduccion de 0,10 euros)
+   7:../proyecto.c **** **      la devuelve (que se emula mediante el encendido de los leds
+   8:../proyecto.c **** **      durante un segundo y la visualizacion de una D en segs)
+   9:../proyecto.c **** **    - Si se pulsa la pantalla, la borra y por cada pulsacion 
+  10:../proyecto.c **** **      de la tecla F (que emula la introduccion de 0,10 euros‚)
+  11:../proyecto.c **** **      acumula 10 centimos y los visualiza en la pantalla. 
+  12:../proyecto.c **** **      Continua asi hasta que se pulse la pantalla, en cuyo
+  13:../proyecto.c **** **      caso vuelve a la pantalla principal aceptando las monedas
+  14:../proyecto.c **** **      (que se emula mediante el encendido de los leds
+  15:../proyecto.c **** **      durante un segundo y la visualizacion de una A en segs);
+  16:../proyecto.c **** **      o hasta que hayan pasado 5 segundos sin actividad.
+  17:../proyecto.c **** **
+  18:../proyecto.c **** **-----------------------------------------------------------------*/
+  19:../proyecto.c **** 
+  20:../proyecto.c **** 
+  21:../proyecto.c **** #include <s3c44b0x.h>
+  22:../proyecto.c **** #include <s3cev40.h>
+  23:../proyecto.c **** #include <common_types.h>
+  24:../proyecto.c **** #include <system.h>
+  25:../proyecto.c **** #include <leds.h>
+  26:../proyecto.c **** #include <segs.h>
+  27:../proyecto.c **** #include <uart.h>
+  28:../proyecto.c **** #include <rtc.h>
+  29:../proyecto.c **** #include <timers.h>
+  30:../proyecto.c **** #include <keypad.h>
+  31:../proyecto.c **** #include <lcd.h>
+  32:../proyecto.c **** #include <ts.h>
+  33:../proyecto.c **** 
+  34:../proyecto.c **** #include "kernelcoop.h"
+  35:../proyecto.c **** 
+  36:../proyecto.c **** /////////////////////////////////////////////////////////////////////////////
+  37:../proyecto.c **** // CONFIGURACION
+  38:../proyecto.c **** /////////////////////////////////////////////////////////////////////////////
+  39:../proyecto.c **** 
+  40:../proyecto.c **** #define MAXPLACES              (10)
+  41:../proyecto.c **** 
+  42:../proyecto.c **** /////////////////////////////////////////////////////////////////////////////
+  43:../proyecto.c **** // Declaracion de tipos
+  44:../proyecto.c **** /////////////////////////////////////////////////////////////////////////////
+  45:../proyecto.c **** 
+  46:../proyecto.c **** typedef struct
+  47:../proyecto.c **** {
+  48:../proyecto.c **** 
+  49:../proyecto.c **** } parking_t;
+  50:../proyecto.c **** 
+  51:../proyecto.c **** /////////////////////////////////////////////////////////////////////////////
+  52:../proyecto.c **** // Declaracion de funciones
+  53:../proyecto.c **** /////////////////////////////////////////////////////////////////////////////
+  54:../proyecto.c **** 
+  55:../proyecto.c **** void setup( void );
+  56:../proyecto.c **** void plotWelcomeScreen( void );
+  57:../proyecto.c **** 
+  58:../proyecto.c **** /////////////////////////////////////////////////////////////////////////////
+  59:../proyecto.c **** // Declaracion de tareas
+  60:../proyecto.c **** /////////////////////////////////////////////////////////////////////////////
+  61:../proyecto.c **** 
+  62:../proyecto.c **** void tsScanTask( void );
+  63:../proyecto.c **** void coinsAcceptorTask( void );
+  64:../proyecto.c **** void clockTask( void );
+  65:../proyecto.c **** void coinsMoverTask( void );
+  66:../proyecto.c **** void mainTask( void );
+  67:../proyecto.c **** void ticketPrinterTask( void );
+  68:../proyecto.c **** 
+  69:../proyecto.c **** /////////////////////////////////////////////////////////////////////////////
+  70:../proyecto.c **** // Declaracion de recursos
+  71:../proyecto.c **** /////////////////////////////////////////////////////////////////////////////
+  72:../proyecto.c **** 
+  73:../proyecto.c **** parking_t parking;
+  74:../proyecto.c **** 
+  75:../proyecto.c **** struct mbox1 {                /* mailbox donde la coinsAcceptorTask indica a mainTask la moneda int
+  76:../proyecto.c ****     boolean flag;
+  77:../proyecto.c ****     uint8   cents;
+  78:../proyecto.c **** } coinAcceptorMsg;
+  79:../proyecto.c **** 
+  80:../proyecto.c **** struct mbox2 {                /* mailbox donde la tsScanTask indica a mainTask la posicion de la pa
+  81:../proyecto.c ****     boolean flag;
+  82:../proyecto.c ****     uint16  x, y;
+  83:../proyecto.c **** } tsPressedMsg;
+  84:../proyecto.c **** 
+  85:../proyecto.c **** struct mbox3 {                 /* mailbox donde la mainTask indica a coinsMoverTask si debe aceptar
+  86:../proyecto.c ****     boolean flag;
+  87:../proyecto.c ****     boolean accept;
+  88:../proyecto.c **** } coinsMoverMsg;
+  89:../proyecto.c **** 
+  90:../proyecto.c **** boolean printTicketFlag;    /* mailbox donde la mainTask indica a ticketPrintTask que imprima un ti
+  91:../proyecto.c **** 
+  92:../proyecto.c **** /*******************************************************************/
+  93:../proyecto.c **** 
+  94:../proyecto.c **** void main( void )
+  95:../proyecto.c **** {
+ 2150              		.loc 1 95 0
+ 2151              		.cfi_startproc
+ 2152              		@ Function supports interworking.
+ 2153              		@ args = 0, pretend = 0, frame = 0
+ 2154              		@ frame_needed = 1, uses_anonymous_args = 0
+ 2155 0000 0DC0A0E1 		mov	ip, sp
+ 2156              	.LCFI0:
+ 2157              		.cfi_def_cfa_register 12
+ 2158 0004 00D82DE9 		stmfd	sp!, {fp, ip, lr, pc}
+ 2159 0008 04B04CE2 		sub	fp, ip, #4
+ 2160              		.cfi_offset 14, -8
+ 2161              		.cfi_offset 13, -12
+ 2162              		.cfi_offset 11, -16
+ 2163              	.LCFI1:
+ 2164              		.cfi_def_cfa 11, 4
+  96:../proyecto.c ****     
+  97:../proyecto.c ****     sys_init();      
+ 2165              		.loc 1 97 0
+ 2166 000c FEFFFFEB 		bl	sys_init
+  98:../proyecto.c ****     leds_init();
+ 2167              		.loc 1 98 0
+ 2168 0010 FEFFFFEB 		bl	leds_init
+  99:../proyecto.c ****     segs_init();
+ 2169              		.loc 1 99 0
+ 2170 0014 FEFFFFEB 		bl	segs_init
+ 100:../proyecto.c ****     uart0_init();
+ 2171              		.loc 1 100 0
+ 2172 0018 FEFFFFEB 		bl	uart0_init
+ 101:../proyecto.c ****     rtc_init();
+ 2173              		.loc 1 101 0
+ 2174 001c FEFFFFEB 		bl	rtc_init
+ 102:../proyecto.c ****     timers_init();
+ 2175              		.loc 1 102 0
+ 2176 0020 FEFFFFEB 		bl	timers_init
+ 103:../proyecto.c ****     keypad_init();
+ 2177              		.loc 1 103 0
+ 2178 0024 FEFFFFEB 		bl	keypad_init
+ 104:../proyecto.c ****     lcd_init();
+ 2179              		.loc 1 104 0
+ 2180 0028 FEFFFFEB 		bl	lcd_init
+ 105:../proyecto.c ****     ts_init();
+ 2181              		.loc 1 105 0
+ 2182 002c FEFFFFEB 		bl	ts_init
+ 106:../proyecto.c **** 
+ 107:../proyecto.c ****     lcd_on();
+ 2183              		.loc 1 107 0
+ 2184 0030 FEFFFFEB 		bl	lcd_on
+ 108:../proyecto.c ****     ts_on();
+ 2185              		.loc 1 108 0
+ 2186 0034 FEFFFFEB 		bl	ts_on
+ 109:../proyecto.c **** 
+ 110:../proyecto.c ****     setup();
+ 2187              		.loc 1 110 0
+ 2188 0038 FEFFFFEB 		bl	setup
+ 111:../proyecto.c **** 
+ 112:../proyecto.c ****     scheduler_init();                       /* Inicializa el kernel */
+ 2189              		.loc 1 112 0
+ 2190 003c FEFFFFEB 		bl	scheduler_init
+ 113:../proyecto.c **** 
+ 114:../proyecto.c ****     create_task( tsScanTask,          5 );    /* Crea las tareas de la aplicacion... */
+ 2191              		.loc 1 114 0
+ 2192 0040 58009FE5 		ldr	r0, .L3
+ 2193 0044 0510A0E3 		mov	r1, #5
+ 2194 0048 FEFFFFEB 		bl	create_task
+ 115:../proyecto.c ****     create_task( coinsAcceptorTask,   5 );    /* ... el kernel asigna la prioridad segun orden de c
+ 2195              		.loc 1 115 0
+ 2196 004c 50009FE5 		ldr	r0, .L3+4
+ 2197 0050 0510A0E3 		mov	r1, #5
+ 2198 0054 FEFFFFEB 		bl	create_task
+ 116:../proyecto.c ****     create_task( mainTask,           10 );    /* ... las tareas mas frecuentes tienen mayor priorid
+ 2199              		.loc 1 116 0
+ 2200 0058 48009FE5 		ldr	r0, .L3+8
+ 2201 005c 0A10A0E3 		mov	r1, #10
+ 2202 0060 FEFFFFEB 		bl	create_task
+ 117:../proyecto.c ****     create_task( coinsMoverTask,     10 );
+ 2203              		.loc 1 117 0
+ 2204 0064 40009FE5 		ldr	r0, .L3+12
+ 2205 0068 0A10A0E3 		mov	r1, #10
+ 2206 006c FEFFFFEB 		bl	create_task
+ 118:../proyecto.c ****     create_task( clockTask,          10 );
+ 2207              		.loc 1 118 0
+ 2208 0070 38009FE5 		ldr	r0, .L3+16
+ 2209 0074 0A10A0E3 		mov	r1, #10
+ 2210 0078 FEFFFFEB 		bl	create_task
+ 119:../proyecto.c ****     create_task( ticketPrinterTask,  10 );
+ 2211              		.loc 1 119 0
+ 2212 007c 30009FE5 		ldr	r0, .L3+20
+ 2213 0080 0A10A0E3 		mov	r1, #10
+ 2214 0084 FEFFFFEB 		bl	create_task
+ 120:../proyecto.c **** 
+ 121:../proyecto.c ****     timer0_open_tick( scheduler, TICKS_PER_SEC );  /* Instala scheduler como RTI del timer0  */
+ 2215              		.loc 1 121 0
+ 2216 0088 28009FE5 		ldr	r0, .L3+24
+ 2217 008c 6410A0E3 		mov	r1, #100
+ 2218 0090 FEFFFFEB 		bl	timer0_open_tick
+ 2219              	.L2:
+ 122:../proyecto.c **** 
+ 123:../proyecto.c ****     while( 1 )
+ 124:../proyecto.c ****     {
+ 125:../proyecto.c ****         sleep();                /* Entra en estado IDLE, sale por interrupcion */
+ 2220              		.loc 1 125 0 discriminator 1
+ 2221 0094 FEFFFFEB 		bl	sleep
+ 126:../proyecto.c ****         dispacher();            /* Las tareas preparadas se ejecutan en esta hebra (background) en 
+ 2222              		.loc 1 126 0 discriminator 1
+ 2223 0098 FEFFFFEB 		bl	dispacher
+ 127:../proyecto.c ****     }
+ 2224              		.loc 1 127 0 discriminator 1
+ 2225 009c FCFFFFEA 		b	.L2
+ 2226              	.L4:
+ 2227              		.align	2
+ 2228              	.L3:
+ 2229 00a0 00000000 		.word	tsScanTask
+ 2230 00a4 00000000 		.word	coinsAcceptorTask
+ 2231 00a8 00000000 		.word	mainTask
+ 2232 00ac 00000000 		.word	coinsMoverTask
+ 2233 00b0 00000000 		.word	clockTask
+ 2234 00b4 00000000 		.word	ticketPrinterTask
+ 2235 00b8 00000000 		.word	scheduler
+ 2236              		.cfi_endproc
+ 2237              	.LFE0:
+ 2239              		.align	2
+ 2240              		.global	mainTask
+ 2242              	mainTask:
+ 2243              	.LFB1:
+ 128:../proyecto.c **** 
+ 129:../proyecto.c **** }
+ 130:../proyecto.c **** 
+ 131:../proyecto.c **** /*******************************************************************/
+ 132:../proyecto.c **** 
+ 133:../proyecto.c **** /* 
+ 134:../proyecto.c **** ** Tarea principal, se activa cada 100 ms muestreando los mensajes enviados de otras tareas y actua
+ 135:../proyecto.c **** */
+ 136:../proyecto.c **** void mainTask( void )  
+ 137:../proyecto.c **** {
+ 2244              		.loc 1 137 0
+ 2245              		.cfi_startproc
+ 2246              		@ Function supports interworking.
+ 2247              		@ args = 0, pretend = 0, frame = 0
+ 2248              		@ frame_needed = 1, uses_anonymous_args = 0
+ 2249 00bc 0DC0A0E1 		mov	ip, sp
+ 2250              	.LCFI2:
+ 2251              		.cfi_def_cfa_register 12
+ 2252 00c0 00D82DE9 		stmfd	sp!, {fp, ip, lr, pc}
+ 2253 00c4 04B04CE2 		sub	fp, ip, #4
+ 2254              		.cfi_offset 14, -8
+ 2255              		.cfi_offset 13, -12
+ 2256              		.cfi_offset 11, -16
+ 2257              	.LCFI3:
+ 2258              		.cfi_def_cfa 11, 4
+ 138:../proyecto.c ****     static boolean init = TRUE;
+ 139:../proyecto.c ****     static enum { demo_waiting, demo_acceptCoins } state;
+ 140:../proyecto.c ****     static uint16 credit;
+ 141:../proyecto.c ****     static uint16 ticks;
+ 142:../proyecto.c **** 
+ 143:../proyecto.c ****     if( init )
+ 2259              		.loc 1 143 0
+ 2260 00c8 D0319FE5 		ldr	r3, .L17
+ 2261 00cc 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 2262 00d0 000053E3 		cmp	r3, #0
+ 2263 00d4 0A00000A 		beq	.L6
+ 144:../proyecto.c ****     {
+ 145:../proyecto.c ****         init   = FALSE;
+ 2264              		.loc 1 145 0
+ 2265 00d8 C0319FE5 		ldr	r3, .L17
+ 2266 00dc 0020A0E3 		mov	r2, #0
+ 2267 00e0 0020C3E5 		strb	r2, [r3, #0]
+ 146:../proyecto.c ****         plotWelcomeScreen();
+ 2268              		.loc 1 146 0
+ 2269 00e4 FEFFFFEB 		bl	plotWelcomeScreen
+ 147:../proyecto.c ****         credit = 0;
+ 2270              		.loc 1 147 0
+ 2271 00e8 B4319FE5 		ldr	r3, .L17+4
+ 2272 00ec 0020A0E3 		mov	r2, #0
+ 2273 00f0 B020C3E1 		strh	r2, [r3, #0]	@ movhi
+ 148:../proyecto.c ****         state = demo_waiting;
+ 2274              		.loc 1 148 0
+ 2275 00f4 AC319FE5 		ldr	r3, .L17+8
+ 2276 00f8 0020A0E3 		mov	r2, #0
+ 2277 00fc 0020C3E5 		strb	r2, [r3, #0]
+ 2278 0100 630000EA 		b	.L5
+ 2279              	.L6:
+ 149:../proyecto.c ****     }
+ 150:../proyecto.c ****     else switch( state )
+ 2280              		.loc 1 150 0
+ 2281 0104 9C319FE5 		ldr	r3, .L17+8
+ 2282 0108 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 2283 010c 000053E3 		cmp	r3, #0
+ 2284 0110 0200000A 		beq	.L8
+ 2285 0114 010053E3 		cmp	r3, #1
+ 2286 0118 1C00000A 		beq	.L9
+ 2287 011c 5C0000EA 		b	.L5
+ 2288              	.L8:
+ 151:../proyecto.c ****     {
+ 152:../proyecto.c ****         case demo_waiting:                        /* Estado en donde rechaza monedas y espera la pu
+ 153:../proyecto.c ****             if( tsPressedMsg.flag )                    /* Chequea si se ha pulsado la pantalla (men
+ 2289              		.loc 1 153 0
+ 2290 0120 84319FE5 		ldr	r3, .L17+12
+ 2291 0124 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 2292 0128 000053E3 		cmp	r3, #0
+ 2293 012c 0900000A 		beq	.L10
+ 154:../proyecto.c ****             {
+ 155:../proyecto.c ****                 tsPressedMsg.flag = FALSE;                 /* Marca el mensaje como leido */
+ 2294              		.loc 1 155 0
+ 2295 0130 74319FE5 		ldr	r3, .L17+12
+ 2296 0134 0020A0E3 		mov	r2, #0
+ 2297 0138 0020C3E5 		strb	r2, [r3, #0]
+ 156:../proyecto.c ****                 lcd_clear();                               /* Borra pantalla */
+ 2298              		.loc 1 156 0
+ 2299 013c FEFFFFEB 		bl	lcd_clear
+ 157:../proyecto.c ****                 state = demo_acceptCoins;                  /* Salta al estado demo_acceptCoins ... 
+ 2300              		.loc 1 157 0
+ 2301 0140 60319FE5 		ldr	r3, .L17+8
+ 2302 0144 0120A0E3 		mov	r2, #1
+ 2303 0148 0020C3E5 		strb	r2, [r3, #0]
+ 158:../proyecto.c ****                 ticks = 500;                               /* ... en el que debera permanecer un ma
+ 2304              		.loc 1 158 0
+ 2305 014c 5C319FE5 		ldr	r3, .L17+16
+ 2306 0150 7D2FA0E3 		mov	r2, #500
+ 2307 0154 B020C3E1 		strh	r2, [r3, #0]	@ movhi
+ 2308              	.L10:
+ 159:../proyecto.c ****             }    
+ 160:../proyecto.c ****             if( coinAcceptorMsg.flag )                /* Chequea si se ha introducido una moneda (m
+ 2309              		.loc 1 160 0
+ 2310 0158 54319FE5 		ldr	r3, .L17+20
+ 2311 015c 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 2312 0160 000053E3 		cmp	r3, #0
+ 2313 0164 4700000A 		beq	.L15
+ 161:../proyecto.c ****             {
+ 162:../proyecto.c ****                 coinAcceptorMsg.flag = FALSE;              /* Marca el mensaje como leido */
+ 2314              		.loc 1 162 0
+ 2315 0168 44319FE5 		ldr	r3, .L17+20
+ 2316 016c 0020A0E3 		mov	r2, #0
+ 2317 0170 0020C3E5 		strb	r2, [r3, #0]
+ 163:../proyecto.c ****                 coinsMoverMsg.accept = FALSE;              /* Envia un mensaje para que la moneda s
+ 2318              		.loc 1 163 0
+ 2319 0174 3C319FE5 		ldr	r3, .L17+24
+ 2320 0178 0020A0E3 		mov	r2, #0
+ 2321 017c 0120C3E5 		strb	r2, [r3, #1]
+ 164:../proyecto.c ****                 coinsMoverMsg.flag   = TRUE;
+ 2322              		.loc 1 164 0
+ 2323 0180 30319FE5 		ldr	r3, .L17+24
+ 2324 0184 0120A0E3 		mov	r2, #1
+ 2325 0188 0020C3E5 		strb	r2, [r3, #0]
+ 165:../proyecto.c ****             }    
+ 166:../proyecto.c ****             break;
+ 2326              		.loc 1 166 0
+ 2327 018c 400000EA 		b	.L5
+ 2328              	.L9:
+ 167:../proyecto.c ****         case demo_acceptCoins:                    /* Estado en deonde acepta monedas y espera la pu
+ 168:../proyecto.c ****             if( !(--ticks) )                           /* Decrementa ticks y chequea si ha permanec
+ 2329              		.loc 1 168 0
+ 2330 0190 18319FE5 		ldr	r3, .L17+16
+ 2331 0194 B030D3E1 		ldrh	r3, [r3, #0]
+ 2332 0198 013043E2 		sub	r3, r3, #1
+ 2333 019c 0338A0E1 		mov	r3, r3, asl #16
+ 2334 01a0 2328A0E1 		mov	r2, r3, lsr #16
+ 2335 01a4 04319FE5 		ldr	r3, .L17+16
+ 2336 01a8 B020C3E1 		strh	r2, [r3, #0]	@ movhi
+ 2337 01ac FC309FE5 		ldr	r3, .L17+16
+ 2338 01b0 B030D3E1 		ldrh	r3, [r3, #0]
+ 2339 01b4 000053E3 		cmp	r3, #0
+ 2340 01b8 0300001A 		bne	.L12
+ 169:../proyecto.c ****             {
+ 170:../proyecto.c ****                 plotWelcomeScreen();                       /* Visualiza pantalla inicial */
+ 2341              		.loc 1 170 0
+ 2342 01bc FEFFFFEB 		bl	plotWelcomeScreen
+ 171:../proyecto.c ****                 state = demo_waiting;                      /* Salta al estado demo_waiting */
+ 2343              		.loc 1 171 0
+ 2344 01c0 E0309FE5 		ldr	r3, .L17+8
+ 2345 01c4 0020A0E3 		mov	r2, #0
+ 2346 01c8 0020C3E5 		strb	r2, [r3, #0]
+ 2347              	.L12:
+ 172:../proyecto.c ****             }
+ 173:../proyecto.c ****             if( tsPressedMsg.flag )                    /* Chequea si se ha pulsado la pantalla (men
+ 2348              		.loc 1 173 0
+ 2349 01cc D8309FE5 		ldr	r3, .L17+12
+ 2350 01d0 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 2351 01d4 000053E3 		cmp	r3, #0
+ 2352 01d8 0F00000A 		beq	.L13
+ 174:../proyecto.c ****             {
+ 175:../proyecto.c ****                 tsPressedMsg.flag = FALSE;                /* Marca el mensaje como leido */
+ 2353              		.loc 1 175 0
+ 2354 01dc C8309FE5 		ldr	r3, .L17+12
+ 2355 01e0 0020A0E3 		mov	r2, #0
+ 2356 01e4 0020C3E5 		strb	r2, [r3, #0]
+ 176:../proyecto.c ****                 coinsMoverMsg.accept = TRUE;              /* Envia un mensaje para que las monedas 
+ 2357              		.loc 1 176 0
+ 2358 01e8 C8309FE5 		ldr	r3, .L17+24
+ 2359 01ec 0120A0E3 		mov	r2, #1
+ 2360 01f0 0120C3E5 		strb	r2, [r3, #1]
+ 177:../proyecto.c ****                 coinsMoverMsg.flag   = TRUE;
+ 2361              		.loc 1 177 0
+ 2362 01f4 BC309FE5 		ldr	r3, .L17+24
+ 2363 01f8 0120A0E3 		mov	r2, #1
+ 2364 01fc 0020C3E5 		strb	r2, [r3, #0]
+ 178:../proyecto.c ****                 credit = 0;                               /* Pone el saldo a 0 */
+ 2365              		.loc 1 178 0
+ 2366 0200 9C309FE5 		ldr	r3, .L17+4
+ 2367 0204 0020A0E3 		mov	r2, #0
+ 2368 0208 B020C3E1 		strh	r2, [r3, #0]	@ movhi
+ 179:../proyecto.c ****                 plotWelcomeScreen();                      /* Visualiza pantalla inicial */
+ 2369              		.loc 1 179 0
+ 2370 020c FEFFFFEB 		bl	plotWelcomeScreen
+ 180:../proyecto.c ****                 state = demo_waiting;                     /* Salta al estado demo_waiting */
+ 2371              		.loc 1 180 0
+ 2372 0210 90309FE5 		ldr	r3, .L17+8
+ 2373 0214 0020A0E3 		mov	r2, #0
+ 2374 0218 0020C3E5 		strb	r2, [r3, #0]
+ 2375              	.L13:
+ 181:../proyecto.c ****             }    
+ 182:../proyecto.c ****             if( coinAcceptorMsg.flag )                /* Chequea si se ha introducido una moneda (m
+ 2376              		.loc 1 182 0
+ 2377 021c 90309FE5 		ldr	r3, .L17+20
+ 2378 0220 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 2379 0224 000053E3 		cmp	r3, #0
+ 2380 0228 1800000A 		beq	.L16
+ 183:../proyecto.c ****             {
+ 184:../proyecto.c ****                 coinAcceptorMsg.flag   = FALSE;           /* Marca el mensaje como leido */
+ 2381              		.loc 1 184 0
+ 2382 022c 80309FE5 		ldr	r3, .L17+20
+ 2383 0230 0020A0E3 		mov	r2, #0
+ 2384 0234 0020C3E5 		strb	r2, [r3, #0]
+ 185:../proyecto.c ****                 credit += coinAcceptorMsg.cents;          /* Incrementa el saldo */
+ 2385              		.loc 1 185 0
+ 2386 0238 74309FE5 		ldr	r3, .L17+20
+ 2387 023c 0130D3E5 		ldrb	r3, [r3, #1]	@ zero_extendqisi2
+ 2388 0240 0320A0E1 		mov	r2, r3
+ 2389 0244 58309FE5 		ldr	r3, .L17+4
+ 2390 0248 B030D3E1 		ldrh	r3, [r3, #0]
+ 2391 024c 033082E0 		add	r3, r2, r3
+ 2392 0250 0338A0E1 		mov	r3, r3, asl #16
+ 2393 0254 2328A0E1 		mov	r2, r3, lsr #16
+ 2394 0258 44309FE5 		ldr	r3, .L17+4
+ 2395 025c B020C3E1 		strh	r2, [r3, #0]	@ movhi
+ 186:../proyecto.c ****                 lcd_putint_x2( 24, 48, BLACK, credit );   /* Muestra el saldo en pantalla */
+ 2396              		.loc 1 186 0
+ 2397 0260 3C309FE5 		ldr	r3, .L17+4
+ 2398 0264 B030D3E1 		ldrh	r3, [r3, #0]
+ 2399 0268 1800A0E3 		mov	r0, #24
+ 2400 026c 3010A0E3 		mov	r1, #48
+ 2401 0270 0F20A0E3 		mov	r2, #15
+ 2402 0274 FEFFFFEB 		bl	lcd_putint_x2
+ 187:../proyecto.c ****                 ticks = 500;                              /* Restaura el tiempo maximo sin activida
+ 2403              		.loc 1 187 0
+ 2404 0278 30309FE5 		ldr	r3, .L17+16
+ 2405 027c 7D2FA0E3 		mov	r2, #500
+ 2406 0280 B020C3E1 		strh	r2, [r3, #0]	@ movhi
+ 188:../proyecto.c ****             }
+ 189:../proyecto.c ****             break;
+ 2407              		.loc 1 189 0
+ 2408 0284 020000EA 		b	.L5
+ 2409              	.L15:
+ 166:../proyecto.c ****             break;
+ 2410              		.loc 1 166 0
+ 2411 0288 0000A0E1 		mov	r0, r0	@ nop
+ 2412 028c 000000EA 		b	.L5
+ 2413              	.L16:
+ 2414              		.loc 1 189 0
+ 2415 0290 0000A0E1 		mov	r0, r0	@ nop
+ 2416              	.L5:
+ 190:../proyecto.c ****     }
+ 191:../proyecto.c **** }
+ 2417              		.loc 1 191 0
+ 2418 0294 0CD04BE2 		sub	sp, fp, #12
+ 2419 0298 00689DE8 		ldmfd	sp, {fp, sp, lr}
+ 2420 029c 1EFF2FE1 		bx	lr
+ 2421              	.L18:
+ 2422              		.align	2
+ 2423              	.L17:
+ 2424 02a0 03000000 		.word	init.4202
+ 2425 02a4 0A000000 		.word	credit.4207
+ 2426 02a8 0C000000 		.word	state.4206
+ 2427 02ac 00000000 		.word	tsPressedMsg
+ 2428 02b0 0E000000 		.word	ticks.4208
+ 2429 02b4 00000000 		.word	coinAcceptorMsg
+ 2430 02b8 00000000 		.word	coinsMoverMsg
+ 2431              		.cfi_endproc
+ 2432              	.LFE1:
+ 2434              		.align	2
+ 2435              		.global	ticketPrinterTask
+ 2437              	ticketPrinterTask:
+ 2438              	.LFB2:
+ 192:../proyecto.c **** 
+ 193:../proyecto.c **** /* 
+ 194:../proyecto.c **** ** Emula el comportamiento de la impresora de tickets:
+ 195:../proyecto.c **** **   Cada segundo muestrea si ha recibido un mensaje de la tarea principal enviar a traves de la UA
+ 196:../proyecto.c **** */
+ 197:../proyecto.c **** void ticketPrinterTask( void )
+ 198:../proyecto.c **** {
+ 2439              		.loc 1 198 0
+ 2440              		.cfi_startproc
+ 2441              		@ Function supports interworking.
+ 2442              		@ args = 0, pretend = 0, frame = 0
+ 2443              		@ frame_needed = 1, uses_anonymous_args = 0
+ 2444 02bc 0DC0A0E1 		mov	ip, sp
+ 2445              	.LCFI4:
+ 2446              		.cfi_def_cfa_register 12
+ 2447 02c0 00D82DE9 		stmfd	sp!, {fp, ip, lr, pc}
+ 2448 02c4 04B04CE2 		sub	fp, ip, #4
+ 2449              		.cfi_offset 14, -8
+ 2450              		.cfi_offset 13, -12
+ 2451              		.cfi_offset 11, -16
+ 2452              	.LCFI5:
+ 2453              		.cfi_def_cfa 11, 4
+ 199:../proyecto.c ****    
+ 200:../proyecto.c **** }
+ 2454              		.loc 1 200 0
+ 2455 02c8 0CD04BE2 		sub	sp, fp, #12
+ 2456 02cc 00689DE8 		ldmfd	sp, {fp, sp, lr}
+ 2457 02d0 1EFF2FE1 		bx	lr
+ 2458              		.cfi_endproc
+ 2459              	.LFE2:
+ 2461              		.align	2
+ 2462              		.global	clockTask
+ 2464              	clockTask:
+ 2465              	.LFB3:
+ 201:../proyecto.c **** 
+ 202:../proyecto.c **** /* 
+ 203:../proyecto.c **** ** Cada segundo visualiza la fecha/hora en la pantalla y libera aquellas plazas cuya hora de finali
+ 204:../proyecto.c **** */
+ 205:../proyecto.c **** void clockTask( void )  
+ 206:../proyecto.c **** {
+ 2466              		.loc 1 206 0
+ 2467              		.cfi_startproc
+ 2468              		@ Function supports interworking.
+ 2469              		@ args = 0, pretend = 0, frame = 0
+ 2470              		@ frame_needed = 1, uses_anonymous_args = 0
+ 2471 02d4 0DC0A0E1 		mov	ip, sp
+ 2472              	.LCFI6:
+ 2473              		.cfi_def_cfa_register 12
+ 2474 02d8 00D82DE9 		stmfd	sp!, {fp, ip, lr, pc}
+ 2475 02dc 04B04CE2 		sub	fp, ip, #4
+ 2476              		.cfi_offset 14, -8
+ 2477              		.cfi_offset 13, -12
+ 2478              		.cfi_offset 11, -16
+ 2479              	.LCFI7:
+ 2480              		.cfi_def_cfa 11, 4
+ 207:../proyecto.c **** 
+ 208:../proyecto.c **** }
+ 2481              		.loc 1 208 0
+ 2482 02e0 0CD04BE2 		sub	sp, fp, #12
+ 2483 02e4 00689DE8 		ldmfd	sp, {fp, sp, lr}
+ 2484 02e8 1EFF2FE1 		bx	lr
+ 2485              		.cfi_endproc
+ 2486              	.LFE3:
+ 2488              		.align	2
+ 2489              		.global	tsScanTask
+ 2491              	tsScanTask:
+ 2492              	.LFB4:
+ 209:../proyecto.c **** 
+ 210:../proyecto.c **** /* 
+ 211:../proyecto.c **** ** Cada 50 ms muestrea la touchscreen y envia un mensaje a la tarea principal con la posicion del l
+ 212:../proyecto.c **** */
+ 213:../proyecto.c **** void tsScanTask( void )  
+ 214:../proyecto.c **** {
+ 2493              		.loc 1 214 0
+ 2494              		.cfi_startproc
+ 2495              		@ Function supports interworking.
+ 2496              		@ args = 0, pretend = 0, frame = 0
+ 2497              		@ frame_needed = 1, uses_anonymous_args = 0
+ 2498 02ec 0DC0A0E1 		mov	ip, sp
+ 2499              	.LCFI8:
+ 2500              		.cfi_def_cfa_register 12
+ 2501 02f0 00D82DE9 		stmfd	sp!, {fp, ip, lr, pc}
+ 2502 02f4 04B04CE2 		sub	fp, ip, #4
+ 2503              		.cfi_offset 14, -8
+ 2504              		.cfi_offset 13, -12
+ 2505              		.cfi_offset 11, -16
+ 2506              	.LCFI9:
+ 2507              		.cfi_def_cfa 11, 4
+ 215:../proyecto.c ****     static boolean init = TRUE;
+ 216:../proyecto.c ****     static enum { wait_keydown, scan, wait_keyup } state;
+ 217:../proyecto.c ****     
+ 218:../proyecto.c ****     if( init )
+ 2508              		.loc 1 218 0
+ 2509 02f8 C4309FE5 		ldr	r3, .L31
+ 2510 02fc 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 2511 0300 000053E3 		cmp	r3, #0
+ 2512 0304 0600000A 		beq	.L22
+ 219:../proyecto.c ****     {
+ 220:../proyecto.c ****         init  = FALSE;
+ 2513              		.loc 1 220 0
+ 2514 0308 B4309FE5 		ldr	r3, .L31
+ 2515 030c 0020A0E3 		mov	r2, #0
+ 2516 0310 0020C3E5 		strb	r2, [r3, #0]
+ 221:../proyecto.c ****         state = wait_keydown;
+ 2517              		.loc 1 221 0
+ 2518 0314 AC309FE5 		ldr	r3, .L31+4
+ 2519 0318 0020A0E3 		mov	r2, #0
+ 2520 031c 0020C3E5 		strb	r2, [r3, #0]
+ 2521 0320 240000EA 		b	.L21
+ 2522              	.L22:
+ 222:../proyecto.c ****     }
+ 223:../proyecto.c ****     else switch( state )
+ 2523              		.loc 1 223 0
+ 2524 0324 9C309FE5 		ldr	r3, .L31+4
+ 2525 0328 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 2526 032c 010053E3 		cmp	r3, #1
+ 2527 0330 0B00000A 		beq	.L25
+ 2528 0334 020053E3 		cmp	r3, #2
+ 2529 0338 1300000A 		beq	.L26
+ 2530 033c 000053E3 		cmp	r3, #0
+ 2531 0340 1C00001A 		bne	.L21
+ 2532              	.L24:
+ 224:../proyecto.c ****     {
+ 225:../proyecto.c ****         case wait_keydown:                        /* Estado esperando la presion de la pantalla */
+ 226:../proyecto.c ****             if( ts_pressed() )                        /* Chequea la pantalla esta presionada */
+ 2533              		.loc 1 226 0
+ 2534 0344 FEFFFFEB 		bl	ts_pressed
+ 2535 0348 0030A0E1 		mov	r3, r0
+ 2536 034c 000053E3 		cmp	r3, #0
+ 2537 0350 1500000A 		beq	.L29
+ 227:../proyecto.c ****                 state = scan;                         /* Salta al estado scan */
+ 2538              		.loc 1 227 0
+ 2539 0354 6C309FE5 		ldr	r3, .L31+4
+ 2540 0358 0120A0E3 		mov	r2, #1
+ 2541 035c 0020C3E5 		strb	r2, [r3, #0]
+ 228:../proyecto.c ****             break;
+ 2542              		.loc 1 228 0
+ 2543 0360 140000EA 		b	.L21
+ 2544              	.L25:
+ 229:../proyecto.c ****         case scan:                                /* Estado en que escanea la pantalla */
+ 230:../proyecto.c ****             ts_getpos( &tsPressedMsg.x, &tsPressedMsg.y );    /* Lee la pantalla */
+ 2545              		.loc 1 230 0
+ 2546 0364 60009FE5 		ldr	r0, .L31+8
+ 2547 0368 60109FE5 		ldr	r1, .L31+12
+ 2548 036c FEFFFFEB 		bl	ts_getpos
+ 231:../proyecto.c ****             tsPressedMsg.flag = TRUE;                 /* Envia un mensaje con el valor de la posici
+ 2549              		.loc 1 231 0
+ 2550 0370 5C309FE5 		ldr	r3, .L31+16
+ 2551 0374 0120A0E3 		mov	r2, #1
+ 2552 0378 0020C3E5 		strb	r2, [r3, #0]
+ 232:../proyecto.c ****             state = wait_keyup;                       /* Salta al estado wait_keyup */
+ 2553              		.loc 1 232 0
+ 2554 037c 44309FE5 		ldr	r3, .L31+4
+ 2555 0380 0220A0E3 		mov	r2, #2
+ 2556 0384 0020C3E5 		strb	r2, [r3, #0]
+ 233:../proyecto.c ****             break;
+ 2557              		.loc 1 233 0
+ 2558 0388 0A0000EA 		b	.L21
+ 2559              	.L26:
+ 234:../proyecto.c ****         case wait_keyup:                          /* Estado esperando la depresion de la pantalla  
+ 235:../proyecto.c ****             if( !ts_pressed() )                       /* Chequea si la pantalla ya no esta presiona
+ 2560              		.loc 1 235 0
+ 2561 038c FEFFFFEB 		bl	ts_pressed
+ 2562 0390 0030A0E1 		mov	r3, r0
+ 2563 0394 000053E3 		cmp	r3, #0
+ 2564 0398 0500001A 		bne	.L30
+ 236:../proyecto.c ****                 state = wait_keydown;                 /* Salta al estado wait_keydown */
+ 2565              		.loc 1 236 0
+ 2566 039c 24309FE5 		ldr	r3, .L31+4
+ 2567 03a0 0020A0E3 		mov	r2, #0
+ 2568 03a4 0020C3E5 		strb	r2, [r3, #0]
+ 237:../proyecto.c ****             break;
+ 2569              		.loc 1 237 0
+ 2570 03a8 020000EA 		b	.L21
+ 2571              	.L29:
+ 228:../proyecto.c ****             break;
+ 2572              		.loc 1 228 0
+ 2573 03ac 0000A0E1 		mov	r0, r0	@ nop
+ 2574 03b0 000000EA 		b	.L21
+ 2575              	.L30:
+ 2576              		.loc 1 237 0
+ 2577 03b4 0000A0E1 		mov	r0, r0	@ nop
+ 2578              	.L21:
+ 238:../proyecto.c ****     }
+ 239:../proyecto.c **** }
+ 2579              		.loc 1 239 0
+ 2580 03b8 0CD04BE2 		sub	sp, fp, #12
+ 2581 03bc 00689DE8 		ldmfd	sp, {fp, sp, lr}
+ 2582 03c0 1EFF2FE1 		bx	lr
+ 2583              	.L32:
+ 2584              		.align	2
+ 2585              	.L31:
+ 2586 03c4 02000000 		.word	init.4221
+ 2587 03c8 09000000 		.word	state.4226
+ 2588 03cc 02000000 		.word	tsPressedMsg+2
+ 2589 03d0 04000000 		.word	tsPressedMsg+4
+ 2590 03d4 00000000 		.word	tsPressedMsg
+ 2591              		.cfi_endproc
+ 2592              	.LFE4:
+ 2594              		.align	2
+ 2595              		.global	coinsAcceptorTask
+ 2597              	coinsAcceptorTask:
+ 2598              	.LFB5:
+ 240:../proyecto.c **** 
+ 241:../proyecto.c **** /* 
+ 242:../proyecto.c **** ** Emula el comportamiento de un reconocedor de monedas:
+ 243:../proyecto.c **** **   Cada 50 ms muestrea el keypad y envia un mensaje a la tarea principal con el valor de la moned
+ 244:../proyecto.c **** */
+ 245:../proyecto.c **** void coinsAcceptorTask( void )  
+ 246:../proyecto.c **** {
+ 2599              		.loc 1 246 0
+ 2600              		.cfi_startproc
+ 2601              		@ Function supports interworking.
+ 2602              		@ args = 0, pretend = 0, frame = 0
+ 2603              		@ frame_needed = 1, uses_anonymous_args = 0
+ 2604 03d8 0DC0A0E1 		mov	ip, sp
+ 2605              	.LCFI10:
+ 2606              		.cfi_def_cfa_register 12
+ 2607 03dc 00D82DE9 		stmfd	sp!, {fp, ip, lr, pc}
+ 2608 03e0 04B04CE2 		sub	fp, ip, #4
+ 2609              		.cfi_offset 14, -8
+ 2610              		.cfi_offset 13, -12
+ 2611              		.cfi_offset 11, -16
+ 2612              	.LCFI11:
+ 2613              		.cfi_def_cfa 11, 4
+ 247:../proyecto.c ****     static boolean init = TRUE;
+ 248:../proyecto.c ****     static enum { wait_keydown, scan, wait_keyup } state;
+ 249:../proyecto.c ****     
+ 250:../proyecto.c ****     if( init )
+ 2614              		.loc 1 250 0
+ 2615 03e4 D8309FE5 		ldr	r3, .L45
+ 2616 03e8 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 2617 03ec 000053E3 		cmp	r3, #0
+ 2618 03f0 0600000A 		beq	.L34
+ 251:../proyecto.c ****     {
+ 252:../proyecto.c ****         init  = FALSE;
+ 2619              		.loc 1 252 0
+ 2620 03f4 C8309FE5 		ldr	r3, .L45
+ 2621 03f8 0020A0E3 		mov	r2, #0
+ 2622 03fc 0020C3E5 		strb	r2, [r3, #0]
+ 253:../proyecto.c ****         state = wait_keydown;
+ 2623              		.loc 1 253 0
+ 2624 0400 C0309FE5 		ldr	r3, .L45+4
+ 2625 0404 0020A0E3 		mov	r2, #0
+ 2626 0408 0020C3E5 		strb	r2, [r3, #0]
+ 2627 040c 290000EA 		b	.L33
+ 2628              	.L34:
+ 254:../proyecto.c ****     }
+ 255:../proyecto.c ****     else switch( state )
+ 2629              		.loc 1 255 0
+ 2630 0410 B0309FE5 		ldr	r3, .L45+4
+ 2631 0414 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 2632 0418 010053E3 		cmp	r3, #1
+ 2633 041c 0B00000A 		beq	.L37
+ 2634 0420 020053E3 		cmp	r3, #2
+ 2635 0424 1800000A 		beq	.L38
+ 2636 0428 000053E3 		cmp	r3, #0
+ 2637 042c 2100001A 		bne	.L33
+ 2638              	.L36:
+ 256:../proyecto.c ****     {
+ 257:../proyecto.c ****         case wait_keydown:                        /* Estado esperando la presion teclas */
+ 258:../proyecto.c ****             if( keypad_pressed() )                    /* Chequea si hay una tecla presionada */
+ 2639              		.loc 1 258 0
+ 2640 0430 FEFFFFEB 		bl	keypad_pressed
+ 2641 0434 0030A0E1 		mov	r3, r0
+ 2642 0438 000053E3 		cmp	r3, #0
+ 2643 043c 1A00000A 		beq	.L43
+ 259:../proyecto.c ****                 state = scan;                         /* Salta al estado scan */
+ 2644              		.loc 1 259 0
+ 2645 0440 80309FE5 		ldr	r3, .L45+4
+ 2646 0444 0120A0E3 		mov	r2, #1
+ 2647 0448 0020C3E5 		strb	r2, [r3, #0]
+ 260:../proyecto.c ****             break;
+ 2648              		.loc 1 260 0
+ 2649 044c 190000EA 		b	.L33
+ 2650              	.L37:
+ 261:../proyecto.c ****         case scan:                                /* Estado en que escanea el teclado */
+ 262:../proyecto.c ****             switch( keypad_scan() )                   /* Lee el teclado */
+ 2651              		.loc 1 262 0
+ 2652 0450 FEFFFFEB 		bl	keypad_scan
+ 2653 0454 0030A0E1 		mov	r3, r0
+ 2654 0458 0F0053E3 		cmp	r3, #15
+ 2655 045c 0600001A 		bne	.L40
+ 2656              	.L41:
+ 263:../proyecto.c ****             {
+ 264:../proyecto.c ****                 case KEYPAD_KEYF:                         /* La tecla F esta asociada a la moneda d
+ 265:../proyecto.c ****                     coinAcceptorMsg.cents = 10;           /* Envia un mensaje con el valor de la mo
+ 2657              		.loc 1 265 0
+ 2658 0460 64309FE5 		ldr	r3, .L45+8
+ 2659 0464 0A20A0E3 		mov	r2, #10
+ 2660 0468 0120C3E5 		strb	r2, [r3, #1]
+ 266:../proyecto.c ****                     coinAcceptorMsg.flag  = TRUE;
+ 2661              		.loc 1 266 0
+ 2662 046c 58309FE5 		ldr	r3, .L45+8
+ 2663 0470 0120A0E3 		mov	r2, #1
+ 2664 0474 0020C3E5 		strb	r2, [r3, #0]
+ 267:../proyecto.c ****                     break;                
+ 2665              		.loc 1 267 0
+ 2666 0478 0000A0E1 		mov	r0, r0	@ nop
+ 2667              	.L40:
+ 268:../proyecto.c ****             }
+ 269:../proyecto.c ****             state = wait_keyup;                       /* Salta al estado wait_keyup */
+ 2668              		.loc 1 269 0
+ 2669 047c 44309FE5 		ldr	r3, .L45+4
+ 2670 0480 0220A0E3 		mov	r2, #2
+ 2671 0484 0020C3E5 		strb	r2, [r3, #0]
+ 270:../proyecto.c ****             break;
+ 2672              		.loc 1 270 0
+ 2673 0488 0A0000EA 		b	.L33
+ 2674              	.L38:
+ 271:../proyecto.c ****         case wait_keyup:                          /* Estado esperando la depresion de teclas  */
+ 272:../proyecto.c ****             if( !keypad_pressed() )                   /* Chequea si la tecla ya no esta presionada 
+ 2675              		.loc 1 272 0
+ 2676 048c FEFFFFEB 		bl	keypad_pressed
+ 2677 0490 0030A0E1 		mov	r3, r0
+ 2678 0494 000053E3 		cmp	r3, #0
+ 2679 0498 0500001A 		bne	.L44
+ 273:../proyecto.c ****                 state = wait_keydown;                     /* Salta al estado wait_keydown */
+ 2680              		.loc 1 273 0
+ 2681 049c 24309FE5 		ldr	r3, .L45+4
+ 2682 04a0 0020A0E3 		mov	r2, #0
+ 2683 04a4 0020C3E5 		strb	r2, [r3, #0]
+ 274:../proyecto.c ****             break;
+ 2684              		.loc 1 274 0
+ 2685 04a8 020000EA 		b	.L33
+ 2686              	.L43:
+ 260:../proyecto.c ****             break;
+ 2687              		.loc 1 260 0
+ 2688 04ac 0000A0E1 		mov	r0, r0	@ nop
+ 2689 04b0 000000EA 		b	.L33
+ 2690              	.L44:
+ 2691              		.loc 1 274 0
+ 2692 04b4 0000A0E1 		mov	r0, r0	@ nop
+ 2693              	.L33:
+ 275:../proyecto.c ****     }    
+ 276:../proyecto.c **** }  
+ 2694              		.loc 1 276 0
+ 2695 04b8 0CD04BE2 		sub	sp, fp, #12
+ 2696 04bc 00689DE8 		ldmfd	sp, {fp, sp, lr}
+ 2697 04c0 1EFF2FE1 		bx	lr
+ 2698              	.L46:
+ 2699              		.align	2
+ 2700              	.L45:
+ 2701 04c4 01000000 		.word	init.4234
+ 2702 04c8 08000000 		.word	state.4239
+ 2703 04cc 00000000 		.word	coinAcceptorMsg
+ 2704              		.cfi_endproc
+ 2705              	.LFE5:
+ 2707              		.align	2
+ 2708              		.global	coinsMoverTask
+ 2710              	coinsMoverTask:
+ 2711              	.LFB6:
+ 277:../proyecto.c **** 
+ 278:../proyecto.c **** /* 
+ 279:../proyecto.c **** ** Emula el comportamiento del dispositivo que envia las monedas a la alcancia o al cajetin de devo
+ 280:../proyecto.c **** **   Cada 100 ms muestrea si ha recibido un mensaje de la tarea principal para mover monedas
+ 281:../proyecto.c **** **   Si van a la alcancia activa durante 1 s los leds y muestra una A en los segs
+ 282:../proyecto.c **** **   Si van al cajetin de devolucion activa durante 1 segundo los leds y muestra una D en los segs
+ 283:../proyecto.c **** */
+ 284:../proyecto.c **** void coinsMoverTask( void ) 
+ 285:../proyecto.c **** {
+ 2712              		.loc 1 285 0
+ 2713              		.cfi_startproc
+ 2714              		@ Function supports interworking.
+ 2715              		@ args = 0, pretend = 0, frame = 0
+ 2716              		@ frame_needed = 1, uses_anonymous_args = 0
+ 2717 04d0 0DC0A0E1 		mov	ip, sp
+ 2718              	.LCFI12:
+ 2719              		.cfi_def_cfa_register 12
+ 2720 04d4 00D82DE9 		stmfd	sp!, {fp, ip, lr, pc}
+ 2721 04d8 04B04CE2 		sub	fp, ip, #4
+ 2722              		.cfi_offset 14, -8
+ 2723              		.cfi_offset 13, -12
+ 2724              		.cfi_offset 11, -16
+ 2725              	.LCFI13:
+ 2726              		.cfi_def_cfa 11, 4
+ 286:../proyecto.c ****     static boolean init = TRUE;
+ 287:../proyecto.c ****     static enum { off, on } state;    
+ 288:../proyecto.c ****     static uint32 ticks;
+ 289:../proyecto.c ****     
+ 290:../proyecto.c ****     if( init )
+ 2727              		.loc 1 290 0
+ 2728 04dc 0C319FE5 		ldr	r3, .L58
+ 2729 04e0 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 2730 04e4 000053E3 		cmp	r3, #0
+ 2731 04e8 0600000A 		beq	.L48
+ 291:../proyecto.c ****     {
+ 292:../proyecto.c ****         init  = FALSE;
+ 2732              		.loc 1 292 0
+ 2733 04ec FC309FE5 		ldr	r3, .L58
+ 2734 04f0 0020A0E3 		mov	r2, #0
+ 2735 04f4 0020C3E5 		strb	r2, [r3, #0]
+ 293:../proyecto.c ****         state = off;
+ 2736              		.loc 1 293 0
+ 2737 04f8 F4309FE5 		ldr	r3, .L58+4
+ 2738 04fc 0020A0E3 		mov	r2, #0
+ 2739 0500 0020C3E5 		strb	r2, [r3, #0]
+ 2740 0504 360000EA 		b	.L47
+ 2741              	.L48:
+ 294:../proyecto.c ****     }
+ 295:../proyecto.c ****     else switch( state )
+ 2742              		.loc 1 295 0
+ 2743 0508 E4309FE5 		ldr	r3, .L58+4
+ 2744 050c 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 2745 0510 000053E3 		cmp	r3, #0
+ 2746 0514 0200000A 		beq	.L50
+ 2747 0518 010053E3 		cmp	r3, #1
+ 2748 051c 1B00000A 		beq	.L51
+ 2749 0520 2F0000EA 		b	.L47
+ 2750              	.L50:
+ 296:../proyecto.c ****     {
+ 297:../proyecto.c ****         case off:                                /* Estado con leds y 7-segs apagados */
+ 298:../proyecto.c ****             if( coinsMoverMsg.flag )                /* Chequea si ha recibido mensaje */
+ 2751              		.loc 1 298 0
+ 2752 0524 CC309FE5 		ldr	r3, .L58+8
+ 2753 0528 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 2754 052c 000053E3 		cmp	r3, #0
+ 2755 0530 2800000A 		beq	.L56
+ 299:../proyecto.c ****             {
+ 300:../proyecto.c ****                 coinsMoverMsg.flag = FALSE;            /* Marca el mensaje como leido */
+ 2756              		.loc 1 300 0
+ 2757 0534 BC309FE5 		ldr	r3, .L58+8
+ 2758 0538 0020A0E3 		mov	r2, #0
+ 2759 053c 0020C3E5 		strb	r2, [r3, #0]
+ 301:../proyecto.c ****                 if( coinsMoverMsg.accept )             /* Muestra el mensaje que corresponda en seg
+ 2760              		.loc 1 301 0
+ 2761 0540 B0309FE5 		ldr	r3, .L58+8
+ 2762 0544 0130D3E5 		ldrb	r3, [r3, #1]	@ zero_extendqisi2
+ 2763 0548 000053E3 		cmp	r3, #0
+ 2764 054c 0200000A 		beq	.L53
+ 302:../proyecto.c ****                     segs_putchar( 0xA );
+ 2765              		.loc 1 302 0
+ 2766 0550 0A00A0E3 		mov	r0, #10
+ 2767 0554 FEFFFFEB 		bl	segs_putchar
+ 2768 0558 010000EA 		b	.L54
+ 2769              	.L53:
+ 303:../proyecto.c ****                 else
+ 304:../proyecto.c ****                     segs_putchar( 0xD );
+ 2770              		.loc 1 304 0
+ 2771 055c 0D00A0E3 		mov	r0, #13
+ 2772 0560 FEFFFFEB 		bl	segs_putchar
+ 2773              	.L54:
+ 305:../proyecto.c ****                 led_on( LEFT_LED );                    /* Enciende leds */
+ 2774              		.loc 1 305 0
+ 2775 0564 0100A0E3 		mov	r0, #1
+ 2776 0568 FEFFFFEB 		bl	led_on
+ 306:../proyecto.c ****                 led_on( RIGHT_LED );
+ 2777              		.loc 1 306 0
+ 2778 056c 0200A0E3 		mov	r0, #2
+ 2779 0570 FEFFFFEB 		bl	led_on
+ 307:../proyecto.c ****                 state = on;                            /* Salta al estado on ... */
+ 2780              		.loc 1 307 0
+ 2781 0574 78309FE5 		ldr	r3, .L58+4
+ 2782 0578 0120A0E3 		mov	r2, #1
+ 2783 057c 0020C3E5 		strb	r2, [r3, #0]
+ 308:../proyecto.c ****                 ticks = 10;                            /* ... en el que debera permanecer 10 ticks 
+ 2784              		.loc 1 308 0
+ 2785 0580 74309FE5 		ldr	r3, .L58+12
+ 2786 0584 0A20A0E3 		mov	r2, #10
+ 2787 0588 002083E5 		str	r2, [r3, #0]
+ 309:../proyecto.c ****             }
+ 310:../proyecto.c ****             break;
+ 2788              		.loc 1 310 0
+ 2789 058c 140000EA 		b	.L47
+ 2790              	.L51:
+ 311:../proyecto.c ****         case on:                                /* Estado con leds y 7-segs encendidos */
+ 312:../proyecto.c ****             if( !(--ticks) )                        /* Decrementa ticks y chequea si ha permanecido
+ 2791              		.loc 1 312 0
+ 2792 0590 64309FE5 		ldr	r3, .L58+12
+ 2793 0594 003093E5 		ldr	r3, [r3, #0]
+ 2794 0598 012043E2 		sub	r2, r3, #1
+ 2795 059c 58309FE5 		ldr	r3, .L58+12
+ 2796 05a0 002083E5 		str	r2, [r3, #0]
+ 2797 05a4 50309FE5 		ldr	r3, .L58+12
+ 2798 05a8 003093E5 		ldr	r3, [r3, #0]
+ 2799 05ac 000053E3 		cmp	r3, #0
+ 2800 05b0 0A00001A 		bne	.L57
+ 313:../proyecto.c ****             {  
+ 314:../proyecto.c ****                 segs_off();                            /* Apaga segs */
+ 2801              		.loc 1 314 0
+ 2802 05b4 FEFFFFEB 		bl	segs_off
+ 315:../proyecto.c ****                 led_off( LEFT_LED );                   /* Apaga leds */
+ 2803              		.loc 1 315 0
+ 2804 05b8 0100A0E3 		mov	r0, #1
+ 2805 05bc FEFFFFEB 		bl	led_off
+ 316:../proyecto.c ****                 led_off( RIGHT_LED );                                
+ 2806              		.loc 1 316 0
+ 2807 05c0 0200A0E3 		mov	r0, #2
+ 2808 05c4 FEFFFFEB 		bl	led_off
+ 317:../proyecto.c ****                 state = off;                           /* Salta al estado off */
+ 2809              		.loc 1 317 0
+ 2810 05c8 24309FE5 		ldr	r3, .L58+4
+ 2811 05cc 0020A0E3 		mov	r2, #0
+ 2812 05d0 0020C3E5 		strb	r2, [r3, #0]
+ 318:../proyecto.c ****             }
+ 319:../proyecto.c ****             break;
+ 2813              		.loc 1 319 0
+ 2814 05d4 020000EA 		b	.L47
+ 2815              	.L56:
+ 310:../proyecto.c ****             break;
+ 2816              		.loc 1 310 0
+ 2817 05d8 0000A0E1 		mov	r0, r0	@ nop
+ 2818 05dc 000000EA 		b	.L47
+ 2819              	.L57:
+ 2820              		.loc 1 319 0
+ 2821 05e0 0000A0E1 		mov	r0, r0	@ nop
+ 2822              	.L47:
+ 320:../proyecto.c ****     }
+ 321:../proyecto.c **** }    
+ 2823              		.loc 1 321 0
+ 2824 05e4 0CD04BE2 		sub	sp, fp, #12
+ 2825 05e8 00689DE8 		ldmfd	sp, {fp, sp, lr}
+ 2826 05ec 1EFF2FE1 		bx	lr
+ 2827              	.L59:
+ 2828              		.align	2
+ 2829              	.L58:
+ 2830 05f0 00000000 		.word	init.4249
+ 2831 05f4 00000000 		.word	state.4253
+ 2832 05f8 00000000 		.word	coinsMoverMsg
+ 2833 05fc 04000000 		.word	ticks.4254
+ 2834              		.cfi_endproc
+ 2835              	.LFE6:
+ 2837              		.align	2
+ 2838              		.global	setup
+ 2840              	setup:
+ 2841              	.LFB7:
+ 322:../proyecto.c **** 
+ 323:../proyecto.c **** /*******************************************************************/
+ 324:../proyecto.c **** 
+ 325:../proyecto.c **** /* 
+ 326:../proyecto.c **** ** Inicializa flags, mailboxes y variables globales
+ 327:../proyecto.c **** */
+ 328:../proyecto.c **** void setup( void )
+ 329:../proyecto.c **** {
+ 2842              		.loc 1 329 0
+ 2843              		.cfi_startproc
+ 2844              		@ Function supports interworking.
+ 2845              		@ args = 0, pretend = 0, frame = 0
+ 2846              		@ frame_needed = 1, uses_anonymous_args = 0
+ 2847 0600 0DC0A0E1 		mov	ip, sp
+ 2848              	.LCFI14:
+ 2849              		.cfi_def_cfa_register 12
+ 2850 0604 00D82DE9 		stmfd	sp!, {fp, ip, lr, pc}
+ 2851 0608 04B04CE2 		sub	fp, ip, #4
+ 2852              		.cfi_offset 14, -8
+ 2853              		.cfi_offset 13, -12
+ 2854              		.cfi_offset 11, -16
+ 2855              	.LCFI15:
+ 2856              		.cfi_def_cfa 11, 4
+ 330:../proyecto.c ****     coinAcceptorMsg.flag  = FALSE;
+ 2857              		.loc 1 330 0
+ 2858 060c 64309FE5 		ldr	r3, .L61
+ 2859 0610 0020A0E3 		mov	r2, #0
+ 2860 0614 0020C3E5 		strb	r2, [r3, #0]
+ 331:../proyecto.c ****     coinAcceptorMsg.cents = 0;
+ 2861              		.loc 1 331 0
+ 2862 0618 58309FE5 		ldr	r3, .L61
+ 2863 061c 0020A0E3 		mov	r2, #0
+ 2864 0620 0120C3E5 		strb	r2, [r3, #1]
+ 332:../proyecto.c ****     
+ 333:../proyecto.c ****     tsPressedMsg.flag     = FALSE;
+ 2865              		.loc 1 333 0
+ 2866 0624 50309FE5 		ldr	r3, .L61+4
+ 2867 0628 0020A0E3 		mov	r2, #0
+ 2868 062c 0020C3E5 		strb	r2, [r3, #0]
+ 334:../proyecto.c ****     tsPressedMsg.x        = 0;
+ 2869              		.loc 1 334 0
+ 2870 0630 44309FE5 		ldr	r3, .L61+4
+ 2871 0634 0020A0E3 		mov	r2, #0
+ 2872 0638 B220C3E1 		strh	r2, [r3, #2]	@ movhi
+ 335:../proyecto.c ****     tsPressedMsg.y        = 0;
+ 2873              		.loc 1 335 0
+ 2874 063c 38309FE5 		ldr	r3, .L61+4
+ 2875 0640 0020A0E3 		mov	r2, #0
+ 2876 0644 B420C3E1 		strh	r2, [r3, #4]	@ movhi
+ 336:../proyecto.c **** 
+ 337:../proyecto.c ****     coinsMoverMsg.flag    = FALSE;
+ 2877              		.loc 1 337 0
+ 2878 0648 30309FE5 		ldr	r3, .L61+8
+ 2879 064c 0020A0E3 		mov	r2, #0
+ 2880 0650 0020C3E5 		strb	r2, [r3, #0]
+ 338:../proyecto.c ****     coinsMoverMsg.accept  = FALSE;
+ 2881              		.loc 1 338 0
+ 2882 0654 24309FE5 		ldr	r3, .L61+8
+ 2883 0658 0020A0E3 		mov	r2, #0
+ 2884 065c 0120C3E5 		strb	r2, [r3, #1]
+ 339:../proyecto.c ****     
+ 340:../proyecto.c ****     printTicketFlag       = FALSE;
+ 2885              		.loc 1 340 0
+ 2886 0660 1C309FE5 		ldr	r3, .L61+12
+ 2887 0664 0020A0E3 		mov	r2, #0
+ 2888 0668 0020C3E5 		strb	r2, [r3, #0]
+ 341:../proyecto.c **** }
+ 2889              		.loc 1 341 0
+ 2890 066c 0CD04BE2 		sub	sp, fp, #12
+ 2891 0670 00689DE8 		ldmfd	sp, {fp, sp, lr}
+ 2892 0674 1EFF2FE1 		bx	lr
+ 2893              	.L62:
+ 2894              		.align	2
+ 2895              	.L61:
+ 2896 0678 00000000 		.word	coinAcceptorMsg
+ 2897 067c 00000000 		.word	tsPressedMsg
+ 2898 0680 00000000 		.word	coinsMoverMsg
+ 2899 0684 00000000 		.word	printTicketFlag
+ 2900              		.cfi_endproc
+ 2901              	.LFE7:
+ 2903              		.section	.rodata
+ 2904              		.align	2
+ 2905              	.LC0:
+ 2906 0000 50756C73 		.ascii	"Pulse la pantalla\000"
+ 2906      65206C61 
+ 2906      2070616E 
+ 2906      74616C6C 
+ 2906      6100
+ 2907 0012 0000     		.align	2
+ 2908              	.LC1:
+ 2909 0014 20207061 		.ascii	"  para comenzar  \000"
+ 2909      72612063 
+ 2909      6F6D656E 
+ 2909      7A617220 
+ 2909      2000
+ 2910 0026 0000     		.text
+ 2911              		.align	2
+ 2912              		.global	plotWelcomeScreen
+ 2914              	plotWelcomeScreen:
+ 2915              	.LFB8:
+ 342:../proyecto.c **** 
+ 343:../proyecto.c **** 
+ 344:../proyecto.c **** void plotWelcomeScreen( void )
+ 345:../proyecto.c **** {   
+ 2916              		.loc 1 345 0
+ 2917              		.cfi_startproc
+ 2918              		@ Function supports interworking.
+ 2919              		@ args = 0, pretend = 0, frame = 0
+ 2920              		@ frame_needed = 1, uses_anonymous_args = 0
+ 2921 0688 0DC0A0E1 		mov	ip, sp
+ 2922              	.LCFI16:
+ 2923              		.cfi_def_cfa_register 12
+ 2924 068c 00D82DE9 		stmfd	sp!, {fp, ip, lr, pc}
+ 2925 0690 04B04CE2 		sub	fp, ip, #4
+ 2926              		.cfi_offset 14, -8
+ 2927              		.cfi_offset 13, -12
+ 2928              		.cfi_offset 11, -16
+ 2929              	.LCFI17:
+ 2930              		.cfi_def_cfa 11, 4
+ 346:../proyecto.c ****     lcd_clear();
+ 2931              		.loc 1 346 0
+ 2932 0694 FEFFFFEB 		bl	lcd_clear
+ 347:../proyecto.c ****     lcd_puts_x2( 24, 48, BLACK, "Pulse la pantalla" );
+ 2933              		.loc 1 347 0
+ 2934 0698 1800A0E3 		mov	r0, #24
+ 2935 069c 3010A0E3 		mov	r1, #48
+ 2936 06a0 0F20A0E3 		mov	r2, #15
+ 2937 06a4 20309FE5 		ldr	r3, .L64
+ 2938 06a8 FEFFFFEB 		bl	lcd_puts_x2
+ 348:../proyecto.c ****     lcd_puts_x2( 24, 76, BLACK, "  para comenzar  " );
+ 2939              		.loc 1 348 0
+ 2940 06ac 1800A0E3 		mov	r0, #24
+ 2941 06b0 4C10A0E3 		mov	r1, #76
+ 2942 06b4 0F20A0E3 		mov	r2, #15
+ 2943 06b8 10309FE5 		ldr	r3, .L64+4
+ 2944 06bc FEFFFFEB 		bl	lcd_puts_x2
+ 349:../proyecto.c **** }
+ 2945              		.loc 1 349 0
+ 2946 06c0 0CD04BE2 		sub	sp, fp, #12
+ 2947 06c4 00689DE8 		ldmfd	sp, {fp, sp, lr}
+ 2948 06c8 1EFF2FE1 		bx	lr
+ 2949              	.L65:
+ 2950              		.align	2
+ 2951              	.L64:
+ 2952 06cc 00000000 		.word	.LC0
+ 2953 06d0 14000000 		.word	.LC1
+ 2954              		.cfi_endproc
+ 2955              	.LFE8:
+ 2957              		.data
+ 2960              	init.4249:
+ 2961 0000 01       		.byte	1
+ 2962              		.bss
+ 2963              	state.4253:
+ 2964 0000 00       		.space	1
+ 2965 0001 000000   		.align	2
+ 2966              	ticks.4254:
+ 2967 0004 00000000 		.space	4
+ 2968              		.data
+ 2971              	init.4234:
+ 2972 0001 01       		.byte	1
+ 2973              		.bss
+ 2974              	state.4239:
+ 2975 0008 00       		.space	1
+ 2976              		.data
+ 2979              	init.4221:
+ 2980 0002 01       		.byte	1
+ 2981              		.bss
+ 2982              	state.4226:
+ 2983 0009 00       		.space	1
+ 2984              		.data
+ 2987              	init.4202:
+ 2988 0003 01       		.byte	1
+ 2989              		.bss
+ 2990              		.align	1
+ 2991              	credit.4207:
+ 2992 000a 0000     		.space	2
+ 2993              	state.4206:
+ 2994 000c 00       		.space	1
+ 2995 000d 00       		.align	1
+ 2996              	ticks.4208:
+ 2997 000e 0000     		.space	2
+ 2998              		.text
+ 2999              	.Letext0:
+DEFINED SYMBOLS
+                            *ABS*:00000000 proyecto.c
+                            *COM*:00000000 parking
+                            *COM*:00000002 coinAcceptorMsg
+                            *COM*:00000006 tsPressedMsg
+                            *COM*:00000002 coinsMoverMsg
+                            *COM*:00000001 printTicketFlag
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2145   .text:00000000 $a
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2148   .text:00000000 main
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2840   .text:00000600 setup
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2229   .text:000000a0 $d
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2491   .text:000002ec tsScanTask
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2597   .text:000003d8 coinsAcceptorTask
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2242   .text:000000bc mainTask
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2710   .text:000004d0 coinsMoverTask
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2464   .text:000002d4 clockTask
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2437   .text:000002bc ticketPrinterTask
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2239   .text:000000bc $a
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2914   .text:00000688 plotWelcomeScreen
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2424   .text:000002a0 $d
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2987   .data:00000003 init.4202
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2991   .bss:0000000a credit.4207
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2993   .bss:0000000c state.4206
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2996   .bss:0000000e ticks.4208
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2434   .text:000002bc $a
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2586   .text:000003c4 $d
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2979   .data:00000002 init.4221
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2982   .bss:00000009 state.4226
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2594   .text:000003d8 $a
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2701   .text:000004c4 $d
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2971   .data:00000001 init.4234
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2974   .bss:00000008 state.4239
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2707   .text:000004d0 $a
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2830   .text:000005f0 $d
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2960   .data:00000000 init.4249
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2963   .bss:00000000 state.4253
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2966   .bss:00000004 ticks.4254
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2837   .text:00000600 $a
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2896   .text:00000678 $d
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2904   .rodata:00000000 $d
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2911   .text:00000688 $a
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2952   .text:000006cc $d
+C:\Users\Mendi\AppData\Local\Temp\cceF3GOW.s:2964   .bss:00000000 $d
+                     .debug_frame:00000010 $d
+
+UNDEFINED SYMBOLS
+sys_init
+leds_init
+segs_init
+uart0_init
+rtc_init
+timers_init
+keypad_init
+lcd_init
+ts_init
+lcd_on
+ts_on
+scheduler_init
+create_task
+timer0_open_tick
+sleep
+dispacher
+scheduler
+lcd_clear
+lcd_putint_x2
+ts_pressed
+ts_getpos
+keypad_pressed
+keypad_scan
+segs_putchar
+led_on
+segs_off
+led_off
+lcd_puts_x2
