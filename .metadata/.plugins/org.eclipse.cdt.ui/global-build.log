@@ -1,4 +1,0 @@
-16:02:55 **** Clean-only build of configuration Debug for project proyecto ****
-cs-make clean 
-cs-rm -rf  proyecto.siz  ./kernelcoop.o ./proyecto.o  ./kernelcoop.d ./proyecto.d  proyecto.hex  proyecto.lst  proyecto.elf
-' '
