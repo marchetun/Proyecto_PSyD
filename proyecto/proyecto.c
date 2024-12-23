@@ -18,7 +18,7 @@
 // CONFIGURACION
 /////////////////////////////////////////////////////////////////////////////
 
-#define MAXPLACES              (10)
+#define MAXPLACES              (8)
 #define TICKS_PER_SEC          100
 
 /////////////////////////////////////////////////////////////////////////////
@@ -75,6 +75,7 @@ parking_t parking;
 
 rtc_time_t actual_time;
 
+volatile uint8 selectedPlace;
 
 struct mbox1 {                /* mailbox donde la coinsAcceptorTask indica a mainTask la moneda introducida */
     boolean flag;
@@ -183,20 +184,19 @@ void mainTask(void)
 
             //Devuelve en nº de plaza pulsado según las coordenadas
             selectedPlace = checkSelectedPlace(tsPressedMsg.x, tsPressedMsg.y);
-
-            if (selectedPlace > 0 && selectedPlace <= MAXPLACES)
-            {
-                if (!parking[selectedPlace - 1].occupied)
-                {
-                    showTariffScreen(selectedPlace, credit);
-                    state = SHOW_TARIFF;
-                    ticks = 500;
-                }
-                else
-                {
-                    showPlaceOccupiedMessage(selectedPlace);
-                    ticks = 500;
-                }
+            if(selectedPlace != 0){
+            	if (!parking[selectedPlace - 1].occupied)
+            	                {
+            	                    showTariffScreen(selectedPlace, credit);
+            	                    state = SHOW_TARIFF;
+            	                    ticks = 500;
+            	                }
+            	                else
+            	                {
+            	                    showPlaceOccupiedMessage(selectedPlace);
+            	                    ticks = 500;
+            	                }
+            }
             }
         }
         // Seguimos rechazando monedas durante la selección de plaza
@@ -270,14 +270,18 @@ void mainTask(void)
             coinsMoverMsg.accept = TRUE;	 /* Envia un mensaje para que las monedas se acepten */
             coinsMoverMsg.flag = TRUE;
 
-            // Obtenemos la hora actual
-            rtc_time_t current_time;
-            rtc_gettime(&current_time);
+            // Obtenemos la hora actual, aunque la estamos obteniendo cada segundo de reloj
+            rtc_gettime(&actual_time);
 
             // Actualizamos la información de la plaza
             parking[selectedPlace - 1].occupied = TRUE;
-            parking[selectedPlace - 1].startTime = current_time.hour * 60 + current_time.min;  // Tiempo inicial en minutos
-            parking[selectedPlace - 1].endTime = parking[selectedPlace - 1].startTime + credit;   // Cada céntimo es un minuto
+            parking[selectedPlace - 1].startTime = actual_time;  // Tiempo inicial en minutos
+
+            //Calculo el timpo final
+            rtc_time_t endTime = parking[selectedPlace - 1].startTime;
+            parking[selectedPlace - 1].endTime = parking[selectedPlace - 1].startTime ;
+            // Aplico los creditos
+           apply_credits(parking[selectedPlace - 1].endTime,credit);
 
             state = PRINT_TICKET;
         }
@@ -295,15 +299,14 @@ void mainTask(void)
         }
         break;
     }
-}
+
 
 /*
 ** Emula el comportamiento de la impresora de tickets:
 **   Cada segundo muestrea si ha recibido un mensaje de la tarea principal enviar a traves de la UART el texto del ticket del aparcamiento elegido
 */
-void ticketPrinterTask(void)
+void ticketPrinterTask(void)//Revisado
 {
-    static uint32 lastPrintTick = 0;
     if (printTicketFlag)
     {
         // Imprimimos una línea de guiones como separador
@@ -317,23 +320,10 @@ void ticketPrinterTask(void)
         // Segunda línea: "Fin de estacionamiento:"
         uart0_puts("Fin de estacionamiento:\n");
 
-        // Tercera línea: fecha y hora de fin
-        rtc_time_t rtc_time;
-        rtc_gettime(&rtc_time);
-
-        // Array para los días de la semana
-        const char* dias[] = { "dom", "lun", "mar", "mie", "jue", "vie", "sab" };
-
-        // Construimos y enviamos la línea con la fecha
-        char timeStr[50];
-        sprintf(timeStr, "%s,%02d/%02d/%02d %02d:%02d\n",
-            dias[rtc_time.wday - 1],
-            rtc_time.mday,
-            rtc_time.mon,
-            rtc_time.year,
-            (parking[selectedPlace - 1].endTime / 60) % 24,
-            parking[selectedPlace - 1].endTime % 60);
-        uart0_puts(timeStr);
+        // Tercera línea: Fecha de fin, por ahora he dejado los segundos tambien ya que al comparar
+        // los estoy teniendo en cuenta, habría que cambiarlo ya que en la demo no tiene en cuenta los segundos
+               uart0_puts(calculate_weekday(parking[selectedPlace-1].endTime.wday)+',' + parking[selectedPlace-1].endTime.mday + '/'+parking[selectedPlace-1].endTime.mon+'/'+parking[selectedPlace-1].endTime.year+' '+
+            		   parking[selectedPlace-1].endTime.hour+':'+parking[selectedPlace-1].endTime.min+':'+parking[selectedPlace-1].endTime.sec);
 
         // Línea separadora final
         uart0_puts("--------------------------------\n");
@@ -345,12 +335,9 @@ void ticketPrinterTask(void)
 /*
 ** Cada segundo visualiza la fecha/hora en la pantalla y libera aquellas plazas cuya hora de finalizacion haya pasado
 */
-void clockTask(void)
+void clockTask(void)//Revisado
 {
-    static uint32 ticks = 0;
-    uint32 i = 0;
-    ticks++;  // Incrementa el contador cada vez que se llama la tarea
-
+	uint8 i;
     //Saco la hora
     rtc_gettime(&actual_time);
 
@@ -360,14 +347,12 @@ void clockTask(void)
 
     // Liberar plazas de parking cuya hora de finalización haya pasado
 
-    for (; i < MAXPLACES; i++) {
+    for (i=0; i < MAXPLACES; i++) {
         if (parking[i].occupied) {
             if (dates_comparator(actual_time, parking[i].endTime)) {
                 parking[i].occupied = FALSE;  // Marca como libre
-                parking[i].startTime = 0;     // Resetea el tiempo de inicio
-                parking[i].endTime = 0;       // Resetea el tiempo de finalización
-                // lcd_clear(); Creo que al limpiar pantalla aquí puede afectar a otras pantallas (por comprobar)
-                lcd_puts(24, 48, BLACK, "Plaza Liberada");
+                reset_rtc_time(&parking[i].startTime);//Reseteamos inicio y final de plaza
+                reset_rtc_time(&parking[i].endTime);
             }
         }
     }
@@ -376,7 +361,7 @@ void clockTask(void)
 /*
 ** Cada 50 ms muestrea la touchscreen y envia un mensaje a la tarea principal con la posicion del lugar pulsado
 */
-void tsScanTask(void)//No tocar
+void tsScanTask(void)//Revisado
 {
     static boolean init = TRUE;
     static enum { wait_keydown, scan, wait_keyup } state;
@@ -410,7 +395,7 @@ void tsScanTask(void)//No tocar
 ** Emula el comportamiento de un reconocedor de monedas:
 **   Cada 50 ms muestrea el keypad y envia un mensaje a la tarea principal con el valor de la moneda asociada a la tecla
 */
-void coinsAcceptorTask(void) {//No tocar
+void coinsAcceptorTask(void) {//Revisado
     static boolean init = TRUE;
     static enum { wait_keydown, scan, wait_keyup } state;
 
@@ -460,7 +445,7 @@ void coinsAcceptorTask(void) {//No tocar
 **   Si van a la alcancia activa durante 1 s los leds y muestra una A en los segs
 **   Si van al cajetin de devolucion activa durante 1 segundo los leds y muestra una D en los segs
 */
-void coinsMoverTask(void)// No tocar
+void coinsMoverTask(void)// Revisado
 {
     static boolean init = TRUE;
     static enum { off, on } state;
@@ -501,7 +486,7 @@ void coinsMoverTask(void)// No tocar
 
 /*******************************************************************/
 
-void setup(void)//No tocar
+void setup(void)//Revisado
 {
     // Inicialización de variables o configuraciones necesarias
     int i;
@@ -543,7 +528,7 @@ void setup(void)//No tocar
 
 /*******************************************************************/
 
-void plotWelcomeScreen(void) {//No tocar
+void plotWelcomeScreen(void) {//Revisado, alomejor cuadrar posiciones de cadenas en el lcd
     lcd_clear();
     rtc_gettime( &actual_time );
 
@@ -569,44 +554,42 @@ void plotWelcomeScreen(void) {//No tocar
 }
 
 //Función que pinta la selección de plazas displonibles.
-void drawParkingGrid(void) {
-    uint16 x, y;
-    uint8 placeNum = 1;
+void drawParkingGrid(void) {//Revisado, alomejor cuadrar posiciones de cadenas en el lcd
+	uint8 place = 0;
+	uint16 x = 32, y=136, i;
+     /* Pinta cuadricula */
+	lcd_draw_box(   0, 119,  79, 179, BLACK, 1 );
+    lcd_draw_box(  79, 119, 159, 179, BLACK, 1 );
+    lcd_draw_box( 159, 119, 239, 179, BLACK, 1 );
+    lcd_draw_box( 239, 119, 319, 179, BLACK, 1 );
+    lcd_draw_box(   0, 179,  79, 239, BLACK, 1 );
+    lcd_draw_box(  79, 179, 159, 239, BLACK, 1 );
+    lcd_draw_box( 159, 179, 239, 239, BLACK, 1 );
+    lcd_draw_box( 239, 179, 319, 239, BLACK, 1 );
 
-    //Dibujo las plazas (2 de altura, 4 de ancho)
-    for (y = 0; y < 2; y++)
-    {
-        for (x = 0; x < 4; x++)
-        {
-            uint16 xPos = 24 + (x * 60);
-            uint16 yPos = 48 + (y * 60);
+    /* Rotula cuadricula */
+    //Bucle para comprobar estado de la plaza
 
-            // Dibujamos el rectángulo de la plaza usando lcd_draw_box
-            // Los parámetros son: xleft, yup, xright, ydown, color, width
-            lcd_draw_box(xPos, yPos, xPos + 50, yPos + 50, BLACK, 1);
+    for(i=0;i<MAXPLACES/2;i++){
+    	if(parking[i].occupied)
+    		 lcd_putchar_x2(  x, y, BLACK, 'X' );
+    	else
+    		 lcd_putchar_x2( x, y, BLACK, '0'+i );
 
-            // Si la plaza está ocupada, mostramos una X
-            if (parking[placeNum - 1].occupied)
-            {
-                // Usamos puts normal ya que no necesitamos tamaño doble para la X
-                lcd_puts(xPos + 20, yPos + 20, BLACK, "X");
-            }
-
-            // Número de plaza
-            char numStr[2];
-            numStr[0] = '0' + placeNum;
-            numStr[1] = '\0';
-            // Usamos puts normal para el número
-            lcd_puts(xPos + 20, yPos + 15, BLACK, numStr);
-
-            placeNum++;
-        }
+    x = x +80;
+    }
+    y = 196;
+    for(;i<MAXPLACES;i++){
+    	if(parking[i].occupied)
+    	    		 lcd_putchar_x2(  x, y, BLACK, 'X' );
+    	    	else
+    	    		 lcd_putchar_x2( x, y, BLACK, '0'+i );
     }
 }
 
-uint8 checkSelectedPlace(uint16 x, uint16 y) {
-    uint8 col = (x - 24) / 60;
-    uint8 row = (y - 48) / 60;
+uint8 checkSelectedPlace(uint16 x, uint16 y) {//Revisado
+    int col = x / 80;
+    int row = (y -119) / 60;
 
     // Verificamos que el toque esté dentro de los límites
     if (col >= 0 && col < 4 && row >= 0 && row < 2)
