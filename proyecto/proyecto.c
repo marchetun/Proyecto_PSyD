@@ -11,6 +11,7 @@
 #include <lcd.h>
 #include <ts.h>
 #include <rtc.h>
+#include "Extra_Fuctions.h"
 #include "kernelcoop.h"
 
 /////////////////////////////////////////////////////////////////////////////
@@ -18,7 +19,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #define MAXPLACES              (10)
-#define TICKS_PER_SEC          1000
+#define TICKS_PER_SEC          100
 
 /////////////////////////////////////////////////////////////////////////////
 // Declaracion de tipos
@@ -26,11 +27,12 @@
 
 typedef struct
 {
-    uint32 startTime;   // Hora en la que se ocupó la plaza (en ticks del reloj)
-    uint32 endTime;     // Hora en la que expiró la plaza (en ticks del reloj)
+	rtc_time_t startTime;   // Hora en la que se ocupó la plaza
+	rtc_time_t endTime;     // Hora en la que expiró la plaza
     boolean occupied;   // Indica si la plaza está ocupada
-} parking_t;
+} plaza_t;
 
+typedef plaza_t parking_t[MAXPLACES];
 // Declaro esta estructura para añadir estados restantes a la main_task()
 typedef enum
 {
@@ -69,8 +71,10 @@ void ticketPrinterTask(void);
 // Declaracion de recursos
 /////////////////////////////////////////////////////////////////////////////
 
-parking_t parking[MAXPLACES];
-uint8 selectedPlace;
+parking_t parking;
+
+rtc_time_t actual_time;
+
 
 struct mbox1 {                /* mailbox donde la coinsAcceptorTask indica a mainTask la moneda introducida */
     boolean flag;
@@ -135,7 +139,6 @@ void mainTask(void)
 {
     static boolean init = TRUE;
     static parkingState_t state;
-    // static enum { demo_waiting, demo_acceptCoins } state; HE SUSTITUIDO ESTO POR ESTRUCTURA MÁS ARRIBA
     static uint16 credit;
     static uint16 ticks;
 
@@ -348,23 +351,18 @@ void clockTask(void)
     uint32 i = 0;
     ticks++;  // Incrementa el contador cada vez que se llama la tarea
 
-    // Actualiza la visualización de la hora en pantalla
-    lcd_clear();
     //Saco la hora
-    rtc_time_t rtc_time;
-    rtc_gettime(&rtc_time);
+    rtc_gettime(&actual_time);
 
-    // Formateamos la hora para mostrarla
-    char timeStr[30];
-    sprintf(timeStr, "%02d:%02d:%02d", rtc_time.hour, rtc_time.min, rtc_time.sec);
-    lcd_puts(24, 24, BLACK, timeStr);
+    // Mostramos la hora
+       lcd_puts(24, 8, BLACK,calculate_weekday(actual_time.wday)+','+actual_time.mday+'/'+actual_time.mon+'/'+actual_time.year+' '+
+       		actual_time.hour+':'+actual_time.min+':'+actual_time.sec);
 
     // Liberar plazas de parking cuya hora de finalización haya pasado
 
     for (; i < MAXPLACES; i++) {
         if (parking[i].occupied) {
-            uint32 current_minutes = rtc_time.hour * 60 + rtc_time.min;
-            if (current_minutes >= parking[i].endTime) {
+            if (dates_comparator(actual_time, parking[i].endTime)) {
                 parking[i].occupied = FALSE;  // Marca como libre
                 parking[i].startTime = 0;     // Resetea el tiempo de inicio
                 parking[i].endTime = 0;       // Resetea el tiempo de finalización
@@ -378,7 +376,7 @@ void clockTask(void)
 /*
 ** Cada 50 ms muestrea la touchscreen y envia un mensaje a la tarea principal con la posicion del lugar pulsado
 */
-void tsScanTask(void)
+void tsScanTask(void)//No tocar
 {
     static boolean init = TRUE;
     static enum { wait_keydown, scan, wait_keyup } state;
@@ -412,7 +410,7 @@ void tsScanTask(void)
 ** Emula el comportamiento de un reconocedor de monedas:
 **   Cada 50 ms muestrea el keypad y envia un mensaje a la tarea principal con el valor de la moneda asociada a la tecla
 */
-void coinsAcceptorTask(void) {
+void coinsAcceptorTask(void) {//No tocar
     static boolean init = TRUE;
     static enum { wait_keydown, scan, wait_keyup } state;
 
@@ -462,7 +460,7 @@ void coinsAcceptorTask(void) {
 **   Si van a la alcancia activa durante 1 s los leds y muestra una A en los segs
 **   Si van al cajetin de devolucion activa durante 1 segundo los leds y muestra una D en los segs
 */
-void coinsMoverTask(void)
+void coinsMoverTask(void)// No tocar
 {
     static boolean init = TRUE;
     static enum { off, on } state;
@@ -503,7 +501,7 @@ void coinsMoverTask(void)
 
 /*******************************************************************/
 
-void setup(void)
+void setup(void)//No tocar
 {
     // Inicialización de variables o configuraciones necesarias
     int i;
@@ -520,12 +518,38 @@ void setup(void)
     coinsMoverMsg.flag = FALSE;
     coinsMoverMsg.accept = FALSE;
     printTicketFlag = FALSE;
+
+    //Iniciamos la hora del sistema
+
+    uart0_puts( "\nIntroduzca nueva fecha\n" );
+    uart0_puts( "  - Dia: " );
+    actual_time.mday = (uint8) uart0_getint();
+    uart0_puts( "  - Dia de la semana (Del 1 al 7, 1 es domingo): " );
+    actual_time.wday = (uint8) uart0_getint();
+    uart0_puts( "  - Mes: " );
+    actual_time.mon = (uint8) uart0_getint();
+    uart0_puts( "  - Año (2 digitos): " );
+    actual_time.year = (uint8) uart0_getint();
+    uart0_puts( "Introduzca nueva hora\n" );
+    uart0_puts( "  - Hora: " );
+    actual_time.hour = (uint8) uart0_getint();
+    uart0_puts( "  - Minuto: " );
+    actual_time.min = (uint8) uart0_getint();
+    uart0_puts( "  - Segundo: " );
+    actual_time.sec = (uint8) uart0_getint();
+
+    rtc_puttime( &actual_time );
 }
 
 /*******************************************************************/
 
-void plotWelcomeScreen(void) {
+void plotWelcomeScreen(void) {//No tocar
     lcd_clear();
+    rtc_gettime( &actual_time );
+
+    //Dibujamos hora del sistema
+    lcd_puts(24, 8, BLACK,calculate_weekday(actual_time.wday)+','+actual_time.mday+'/'+actual_time.mon+'/'+actual_time.year+' '+
+    		actual_time.hour+':'+actual_time.min+':'+actual_time.sec);
 
     // Mensaje principal centrado
     lcd_puts(24, 24, BLACK, "Pulse la pantalla");
