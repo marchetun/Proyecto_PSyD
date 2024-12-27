@@ -19,7 +19,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #define MAXPLACES              (8)
-//Ya definido en kerelcoop.h #define TICKS_PER_SEC          100
+#define TICKS_PER_SEC          100
 
 /////////////////////////////////////////////////////////////////////////////
 // Declaracion de tipos
@@ -27,13 +27,12 @@
 
 typedef struct
 {
-    rtc_time_t startTime;   // Hora en la que se ocupó la plaza
-    rtc_time_t endTime;     // Hora en la que expiró la plaza
+	rtc_time_t startTime;   // Hora en la que se ocupó la plaza
+	rtc_time_t endTime;     // Hora en la que expiró la plaza
     boolean occupied;   // Indica si la plaza está ocupada
 } plaza_t;
 
 typedef plaza_t parking_t[MAXPLACES];
-
 // Declaro esta estructura para añadir estados restantes a la main_task()
 typedef enum
 {
@@ -185,21 +184,24 @@ void mainTask(void)
 
             //Devuelve en nº de plaza pulsado según las coordenadas
             selectedPlace = checkSelectedPlace(tsPressedMsg.x, tsPressedMsg.y);
-            if (selectedPlace != 0) {
-                if (!parking[selectedPlace - 1].occupied) {
-                    showTariffScreen(selectedPlace, credit);
-                    state = SHOW_TARIFF;
-                    ticks = 500;
-                }
-                else {
-                    showPlaceOccupiedMessage(selectedPlace);
-                    state = SELECT_PLACE;
-                    ticks = 500;
-                }
+            if(selectedPlace != 0){
+            	if (!parking[selectedPlace - 1].occupied)
+            	                {
+            	                    showTariffScreen(selectedPlace, credit);
+            	                    state = SHOW_TARIFF;
+            	                    ticks = 500;
+            	                }
+            	                else
+            	                {
+            	                    showPlaceOccupiedMessage(selectedPlace);
+            	                    ticks = 500;
+            	                }
+            }
             }
         }
         // Seguimos rechazando monedas durante la selección de plaza
-        if (coinAcceptorMsg.flag) {
+        if (coinAcceptorMsg.flag)
+        {
             coinAcceptorMsg.flag = FALSE;
             coinsMoverMsg.accept = FALSE;
             coinsMoverMsg.flag = TRUE;
@@ -277,9 +279,9 @@ void mainTask(void)
 
             //Calculo el timpo final
             rtc_time_t endTime = parking[selectedPlace - 1].startTime;
-            parking[selectedPlace - 1].endTime = parking[selectedPlace - 1].startTime;
+            parking[selectedPlace - 1].endTime = parking[selectedPlace - 1].startTime ;
             // Aplico los creditos
-            apply_credits(&parking[selectedPlace - 1].endTime, credit);
+           apply_credits(parking[selectedPlace - 1].endTime,credit);
 
             state = PRINT_TICKET;
         }
@@ -297,7 +299,7 @@ void mainTask(void)
         }
         break;
     }
-}
+
 
 /*
 ** Emula el comportamiento de la impresora de tickets:
@@ -305,7 +307,8 @@ void mainTask(void)
 */
 void ticketPrinterTask(void)//Revisado
 {
-    if (printTicketFlag) {
+    if (printTicketFlag)
+    {
         // Imprimimos una línea de guiones como separador
         uart0_puts("--------------------------------\n");
 
@@ -319,8 +322,8 @@ void ticketPrinterTask(void)//Revisado
 
         // Tercera línea: Fecha de fin, por ahora he dejado los segundos tambien ya que al comparar
         // los estoy teniendo en cuenta, habría que cambiarlo ya que en la demo no tiene en cuenta los segundos
-        uart0_puts(calculate_weekday(parking[selectedPlace - 1].endTime.wday) + ',' + parking[selectedPlace - 1].endTime.mday + '/' + parking[selectedPlace - 1].endTime.mon + '/' + parking[selectedPlace - 1].endTime.year + ' ' +
-            parking[selectedPlace - 1].endTime.hour + ':' + parking[selectedPlace - 1].endTime.min + ':' + parking[selectedPlace - 1].endTime.sec);
+               uart0_puts(calculate_weekday(parking[selectedPlace-1].endTime.wday)+',' + parking[selectedPlace-1].endTime.mday + '/'+parking[selectedPlace-1].endTime.mon+'/'+parking[selectedPlace-1].endTime.year+' '+
+            		   parking[selectedPlace-1].endTime.hour+':'+parking[selectedPlace-1].endTime.min+':'+parking[selectedPlace-1].endTime.sec);
 
         // Línea separadora final
         uart0_puts("--------------------------------\n");
@@ -334,17 +337,17 @@ void ticketPrinterTask(void)//Revisado
 */
 void clockTask(void)//Revisado
 {
-    uint8 i;
+	uint8 i;
     //Saco la hora
     rtc_gettime(&actual_time);
 
     // Mostramos la hora
-    lcd_puts(24, 8, BLACK, calculate_weekday(actual_time.wday) + ',' + actual_time.mday + '/' + actual_time.mon + '/' + actual_time.year + ' ' +
-        actual_time.hour + ':' + actual_time.min + ':' + actual_time.sec);
+       lcd_puts(24, 8, BLACK,calculate_weekday(actual_time.wday)+','+actual_time.mday+'/'+actual_time.mon+'/'+actual_time.year+' '+
+       		actual_time.hour+':'+actual_time.min+':'+actual_time.sec);
 
     // Liberar plazas de parking cuya hora de finalización haya pasado
 
-    for (i = 0; i < MAXPLACES; i++) {
+    for (i=0; i < MAXPLACES; i++) {
         if (parking[i].occupied) {
             if (dates_comparator(actual_time, parking[i].endTime)) {
                 parking[i].occupied = FALSE;  // Marca como libre
@@ -363,11 +366,13 @@ void tsScanTask(void)//Revisado
     static boolean init = TRUE;
     static enum { wait_keydown, scan, wait_keyup } state;
     uint16 x, y;
-    if (init) {
+    if (init)
+    {
         init = FALSE;
         state = wait_keydown;
     }
-    else switch (state) {
+    else switch (state)
+    {
     case wait_keydown:                        /* Estado esperando la presion de la pantalla */
         if (ts_pressed())                        /* Chequea la pantalla esta presionada */
             state = scan;                         /* Salta al estado scan */
@@ -394,11 +399,13 @@ void coinsAcceptorTask(void) {//Revisado
     static boolean init = TRUE;
     static enum { wait_keydown, scan, wait_keyup } state;
 
-    if (init) {
+    if (init)
+    {
         init = FALSE;
         state = wait_keydown;
     }
-    else switch (state) {
+    else switch (state)
+    {
     case wait_keydown:                        /* Estado esperando la presion teclas */
         if (keypad_pressed())                    /* Chequea si hay una tecla presionada */
             state = scan;                         /* Salta al estado scan */
@@ -499,35 +506,35 @@ void setup(void)//Revisado
 
     //Iniciamos la hora del sistema
 
-    uart0_puts("\nIntroduzca nueva fecha\n");
-    uart0_puts("  - Dia: ");
-    actual_time.mday = (uint8)uart0_getint();
-    uart0_puts("  - Dia de la semana (Del 1 al 7, 1 es domingo): ");
-    actual_time.wday = (uint8)uart0_getint();
-    uart0_puts("  - Mes: ");
-    actual_time.mon = (uint8)uart0_getint();
-    uart0_puts("  - Año (2 digitos): ");
-    actual_time.year = (uint8)uart0_getint();
-    uart0_puts("Introduzca nueva hora\n");
-    uart0_puts("  - Hora: ");
-    actual_time.hour = (uint8)uart0_getint();
-    uart0_puts("  - Minuto: ");
-    actual_time.min = (uint8)uart0_getint();
-    uart0_puts("  - Segundo: ");
-    actual_time.sec = (uint8)uart0_getint();
+    uart0_puts( "\nIntroduzca nueva fecha\n" );
+    uart0_puts( "  - Dia: " );
+    actual_time.mday = (uint8) uart0_getint();
+    uart0_puts( "  - Dia de la semana (Del 1 al 7, 1 es domingo): " );
+    actual_time.wday = (uint8) uart0_getint();
+    uart0_puts( "  - Mes: " );
+    actual_time.mon = (uint8) uart0_getint();
+    uart0_puts( "  - Año (2 digitos): " );
+    actual_time.year = (uint8) uart0_getint();
+    uart0_puts( "Introduzca nueva hora\n" );
+    uart0_puts( "  - Hora: " );
+    actual_time.hour = (uint8) uart0_getint();
+    uart0_puts( "  - Minuto: " );
+    actual_time.min = (uint8) uart0_getint();
+    uart0_puts( "  - Segundo: " );
+    actual_time.sec = (uint8) uart0_getint();
 
-    rtc_puttime(&actual_time);
+    rtc_puttime( &actual_time );
 }
 
 /*******************************************************************/
 
 void plotWelcomeScreen(void) {//Revisado, alomejor cuadrar posiciones de cadenas en el lcd
     lcd_clear();
-    rtc_gettime(&actual_time);
+    rtc_gettime( &actual_time );
 
     //Dibujamos hora del sistema
-    lcd_puts(24, 8, BLACK, calculate_weekday(actual_time.wday) + ',' + actual_time.mday + '/' + actual_time.mon + '/' + actual_time.year + ' ' +
-        actual_time.hour + ':' + actual_time.min + ':' + actual_time.sec);
+    lcd_puts(24, 8, BLACK,calculate_weekday(actual_time.wday)+','+actual_time.mday+'/'+actual_time.mon+'/'+actual_time.year+' '+
+    		actual_time.hour+':'+actual_time.min+':'+actual_time.sec);
 
     // Mensaje principal centrado
     lcd_puts(24, 24, BLACK, "Pulse la pantalla");
@@ -548,40 +555,41 @@ void plotWelcomeScreen(void) {//Revisado, alomejor cuadrar posiciones de cadenas
 
 //Función que pinta la selección de plazas displonibles.
 void drawParkingGrid(void) {//Revisado, alomejor cuadrar posiciones de cadenas en el lcd
-    uint16 x = 32, y = 136, i;
-    /* Pinta cuadricula */
-    lcd_draw_box(0, 119, 79, 179, BLACK, 1);
-    lcd_draw_box(79, 119, 159, 179, BLACK, 1);
-    lcd_draw_box(159, 119, 239, 179, BLACK, 1);
-    lcd_draw_box(239, 119, 319, 179, BLACK, 1);
-    lcd_draw_box(0, 179, 79, 239, BLACK, 1);
-    lcd_draw_box(79, 179, 159, 239, BLACK, 1);
-    lcd_draw_box(159, 179, 239, 239, BLACK, 1);
-    lcd_draw_box(239, 179, 319, 239, BLACK, 1);
+	uint8 place = 0;
+	uint16 x = 32, y=136, i;
+     /* Pinta cuadricula */
+	lcd_draw_box(   0, 119,  79, 179, BLACK, 1 );
+    lcd_draw_box(  79, 119, 159, 179, BLACK, 1 );
+    lcd_draw_box( 159, 119, 239, 179, BLACK, 1 );
+    lcd_draw_box( 239, 119, 319, 179, BLACK, 1 );
+    lcd_draw_box(   0, 179,  79, 239, BLACK, 1 );
+    lcd_draw_box(  79, 179, 159, 239, BLACK, 1 );
+    lcd_draw_box( 159, 179, 239, 239, BLACK, 1 );
+    lcd_draw_box( 239, 179, 319, 239, BLACK, 1 );
 
     /* Rotula cuadricula */
     //Bucle para comprobar estado de la plaza
 
-    for (i = 0; i < MAXPLACES / 2; i++) {
-        if (parking[i].occupied)
-            lcd_putchar_x2(x, y, BLACK, 'X');
-        else
-            lcd_putchar_x2(x, y, BLACK, '0' + i);
+    for(i=0;i<MAXPLACES/2;i++){
+    	if(parking[i].occupied)
+    		 lcd_putchar_x2(  x, y, BLACK, 'X' );
+    	else
+    		 lcd_putchar_x2( x, y, BLACK, '0'+i );
 
-        x = x + 80;
+    x = x +80;
     }
     y = 196;
-    for (; i < MAXPLACES; i++) {
-        if (parking[i].occupied)
-            lcd_putchar_x2(x, y, BLACK, 'X');
-        else
-            lcd_putchar_x2(x, y, BLACK, '0' + i);
+    for(;i<MAXPLACES;i++){
+    	if(parking[i].occupied)
+    	    		 lcd_putchar_x2(  x, y, BLACK, 'X' );
+    	    	else
+    	    		 lcd_putchar_x2( x, y, BLACK, '0'+i );
     }
 }
 
 uint8 checkSelectedPlace(uint16 x, uint16 y) {//Revisado
     int col = x / 80;
-    int row = (y - 119) / 60;
+    int row = (y -119) / 60;
 
     // Verificamos que el toque esté dentro de los límites
     if (col >= 0 && col < 4 && row >= 0 && row < 2)
@@ -595,60 +603,59 @@ uint8 checkSelectedPlace(uint16 x, uint16 y) {//Revisado
 void showPlaceOccupiedMessage(uint8 placeNum) {
     lcd_clear();
 
-    // Primera línea - Plaza X ocupada (en grande)
-    lcd_puts_x2(70, 60, BLACK, "Plaza ");
-    lcd_putint_x2(140, 60, BLACK, placeNum);
-    lcd_puts_x2(160, 60, BLACK, " ocupada");
+    // Primera línea: "Plaza X ocupada"
+    char plazaStr[20];
+    sprintf(plazaStr, "Plaza %d ocupada", placeNum);
+    lcd_puts(24, 48, BLACK, plazaStr);
 
-    // Segunda línea - Fin de estacionamiento
-    lcd_puts(50, 120, BLACK, "Fin: ");
-    lcd_puts(80, 120, BLACK, calculate_weekday(parking[placeNum - 1].endTime.wday));
-    lcd_putchar(110, 120, BLACK, ',');
-    lcd_putint(120, 120, BLACK, parking[placeNum - 1].endTime.mday);
-    lcd_putchar(135, 120, BLACK, '/');
-    lcd_putint(145, 120, BLACK, parking[placeNum - 1].endTime.mon);
-    lcd_putchar(160, 120, BLACK, '/');
-    lcd_putint(170, 120, BLACK, parking[placeNum - 1].endTime.year);
-    lcd_putchar(185, 120, BLACK, ' ');
-    lcd_putint(195, 120, BLACK, parking[placeNum - 1].endTime.hour);
-    lcd_putchar(210, 120, BLACK, ':');
-    lcd_putint(220, 120, BLACK, parking[placeNum - 1].endTime.min);
+    // Segunda línea: "Fin: dia,fecha hora"
+    rtc_time_t endTime;
+    rtc_gettime(&endTime);  // Obtenemos la hora de finalización
+
+    // Array para convertir número de día a texto abreviado
+    const char* dias[] = { "dom", "lun", "mar", "mie", "jue", "vie", "sab" };
+
+    char timeStr[30];
+    sprintf(timeStr, "Fin: %s,%02d/%02d/%02d %02d:%02d",
+        dias[endTime.wday - 1],  // -1 porque wday va de 1-7
+        endTime.mday,
+        endTime.mon,
+        endTime.year,
+        endTime.hour,
+        endTime.min);
+
+    lcd_puts(24, 76, BLACK, timeStr);
 
     sw_delay_ms(2000);
+
     lcd_clear();
+    lcd_puts(24, 24, BLACK, "Seleccione plaza");
     drawParkingGrid();
 }
 
-void showTariffScreen(uint8 placeNum, uint16 credit)
-{
+void showTariffScreen(uint8 placeNum, uint16 credit) {
     lcd_clear();
 
-    // Dibujamos el rectángulo para la tarifa
+    // Rectángulo para la tarifa
     lcd_draw_box(20, 40, 300, 130, BLACK, 1);
 
     // Título centrado
-    lcd_puts_x2(120, 24, BLACK, "TARIFA");
+    lcd_puts(130, 48, BLACK, "TARIFA");
 
     // Información de tarifa dentro del rectángulo
     lcd_puts(24, 72, BLACK, "Precio por minuto: 0,01 euros");
     lcd_puts(24, 96, BLACK, "Estancia minima:  20 minutos");
     lcd_puts(24, 120, BLACK, "Estancia maxima: 240 minutos");
 
-    // Información de plaza
-    lcd_puts_x2(24, 150, BLACK, "Plaza ");
-    lcd_putint_x2(100, 150, BLACK, placeNum);
+    // Información de la plaza
+    char plazaStr[20];
+    sprintf(plazaStr, "Plaza %d", placeNum);
+    lcd_puts_x2(24, 150, BLACK, plazaStr);
 
-    // Crédito
-    lcd_puts(24, 180, BLACK, "Credito: ");
-    lcd_putint(90, 180, BLACK, credit / 100);
-    lcd_putchar(105, 180, BLACK, ',');
-    if (credit % 100 < 10) {
-        lcd_putchar(115, 180, BLACK, '0');
-    }
-    lcd_putint(125, 180, BLACK, credit % 100);
-    lcd_puts(140, 180, BLACK, " euros");
-
-    // Mensajes finales
+    // Crédito y mensajes finales
+    char creditStr[20];
+    sprintf(creditStr, "Credito: %.2f euros", credit / 100.0);
+    lcd_puts(24, 180, BLACK, creditStr);
     lcd_puts(24, 204, BLACK, "Inserte monedas");
     lcd_puts(24, 228, BLACK, "Pulse la pantalla para aceptar");
 }

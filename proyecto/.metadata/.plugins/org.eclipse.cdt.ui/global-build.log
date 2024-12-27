@@ -1,0 +1,27 @@
+13:20:24 **** Incremental Build of configuration Debug for project proyecto ****
+cs-make all 
+'Building file: ../proyecto.c'
+'Invoking: ARM Sourcery Windows GCC C Compiler'
+arm-none-eabi-gcc -I../../BSP/include -O0 -Wall -Wa,-adhlns="proyecto.o.lst" -c -fmessage-length=0 -mapcs-frame -MMD -MP -MF"proyecto.d" -MT"proyecto.d" -mcpu=arm7tdmi -g3 -gdwarf-2 -o "proyecto.o" "../proyecto.c"
+../proyecto.c:21:0: warning: "TICKS_PER_SEC" redefined
+../kernelcoop.h:22:0: note: this is the location of the previous definition
+../proyecto.c:94:6: warning: return type of 'main' is not 'int'
+../proyecto.c: In function 'ticketPrinterTask':
+../proyecto.c:326:3: warning: implicit declaration of function 'sprintf'
+../proyecto.c:326:3: warning: incompatible implicit declaration of built-in function 'sprintf'
+../proyecto.c:303:19: warning: unused variable 'lastPrintTick'
+../proyecto.c: In function 'clockTask':
+../proyecto.c:359:5: warning: incompatible implicit declaration of built-in function 'sprintf'
+../proyecto.c: In function 'showPlaceOccupiedMessage':
+../proyecto.c:601:5: warning: incompatible implicit declaration of built-in function 'sprintf'
+../proyecto.c: In function 'showTariffScreen':
+../proyecto.c:645:5: warning: incompatible implicit declaration of built-in function 'sprintf'
+'Finished building: ../proyecto.c'
+' '
+'Building target: proyecto.elf'
+'Invoking: ARM Sourcery Windows GCC C Linker'
+arm-none-eabi-gcc -T"../proyecto.ld" -nostartfiles -L../../BSP/Debug -Wl,-Map,proyecto.map -mcpu=arm7tdmi -g3 -gdwarf-2 -o "proyecto.elf"  ./kernelcoop.o ./proyecto.o   -lBSP
+c:/eclipsearm/sourcery-g++-lite-arm-2011.03/bin/../lib/gcc/arm-none-eabi/4.5.2/../../../../arm-none-eabi/lib\libc.a(lib_a-sbrkr.o): In function `_sbrk_r':
+sbrkr.c:(.text+0x18): undefined reference to `_sbrk'
+collect2: ld returned 1 exit status
+cs-make: *** [proyecto.elf] Error 1
