@@ -19,7 +19,6 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #define MAXPLACES              (8)
-//Ya definido en kerelcoop.h #define TICKS_PER_SEC          100
 
 /////////////////////////////////////////////////////////////////////////////
 // Declaracion de tipos
@@ -160,7 +159,7 @@ void mainTask(void)
             lcd_clear();                               /* Borra pantalla */
 
             //Preparo cambio de estado a SELECT_PLACE
-            lcd_puts(24, 24, BLACK, "Seleccione plaza");
+            lcd_puts_x2(24, 24, BLACK, "Seleccione plaza");
             drawParkingGrid();
 
             state = SELECT_PLACE;                  /* Salta al estado demo_acceptCoins ... */
@@ -240,7 +239,7 @@ void mainTask(void)
                 credit = 0;
                 state = SELECT_PLACE;
                 lcd_clear();
-                lcd_puts(24, 24, BLACK, "Seleccione plaza");
+                lcd_puts_x2(28, 32, BLACK, "Plaza ");
                 drawParkingGrid();
             }
         }
@@ -526,24 +525,24 @@ void plotWelcomeScreen(void) {//Revisado, alomejor cuadrar posiciones de cadenas
     rtc_gettime(&actual_time);
 
     //Dibujamos hora del sistema
-    lcd_puts(24, 8, BLACK, calculate_weekday(actual_time.wday) + ',' + actual_time.mday + '/' + actual_time.mon + '/' + actual_time.year + ' ' +
+    lcd_puts(40, 8, BLACK, calculate_weekday(actual_time.wday) + ',' + actual_time.mday + '/' + actual_time.mon + '/' + actual_time.year + ' ' +
         actual_time.hour + ':' + actual_time.min + ':' + actual_time.sec);
 
     // Mensaje principal centrado
-    lcd_puts(24, 24, BLACK, "Pulse la pantalla");
-    lcd_puts(24, 40, BLACK, "para comenzar");
+    lcd_puts_x2(32, 28, BLACK, "Pulse la pantalla");
+    lcd_puts_x2(62, 64, BLACK, "para comenzar");
 
     // Dibujamos el rectángulo para el horario
-    lcd_draw_box(20, 70, 300, 200, BLACK, 1);
+    lcd_draw_box(0, 128, 319, 224, BLACK, 1);
 
     // Título del horario centrado
-    lcd_puts(70, 80, BLACK, "HORARIO DE FUNCIONAMIENTO");
+    lcd_puts(70, 120, BLACK, "HORARIO DE FUNCIONAMIENTO");
 
     // Horarios
-    lcd_puts(24, 100, BLACK, "dom: gratis            jue: 09:00-21:00");
-    lcd_puts(24, 120, BLACK, "lun: 09:00-21:00       vie: 09:00-21:00");
-    lcd_puts(24, 140, BLACK, "mar: 09:00-21:00       sab: 09:00-15:00");
-    lcd_puts(24, 160, BLACK, "mie: 09:00-21:00");
+    lcd_puts(24, 140, BLACK, "dom: gratis        jue: 09:00-21:00");
+    lcd_puts(24, 160, BLACK, "lun: 09:00-21:00   vie: 09:00-21:00");
+    lcd_puts(24, 180, BLACK, "mar: 09:00-21:00   sab: 09:00-15:00");
+    lcd_puts(24, 200, BLACK, "mie: 09:00-21:00");
 }
 
 //Función que pinta la selección de plazas displonibles.
@@ -562,20 +561,22 @@ void drawParkingGrid(void) {//Revisado, alomejor cuadrar posiciones de cadenas e
     /* Rotula cuadricula */
     //Bucle para comprobar estado de la plaza
 
-    for (i = 0; i < MAXPLACES / 2; i++) {
-        if (parking[i].occupied)
+    for (i = 1; i <= MAXPLACES / 2; i++) {
+        if (parking[i-1].occupied)
             lcd_putchar_x2(x, y, BLACK, 'X');
         else
             lcd_putchar_x2(x, y, BLACK, '0' + i);
 
         x = x + 80;
     }
+    x= 32;
     y = 196;
-    for (; i < MAXPLACES; i++) {
-        if (parking[i].occupied)
+    for (; i <= MAXPLACES; i++) {
+        if (parking[i-1].occupied)
             lcd_putchar_x2(x, y, BLACK, 'X');
         else
             lcd_putchar_x2(x, y, BLACK, '0' + i);
+        x = x + 80;
     }
 }
 
@@ -624,31 +625,23 @@ void showTariffScreen(uint8 placeNum, uint16 credit)
     lcd_clear();
 
     // Dibujamos el rectángulo para la tarifa
-    lcd_draw_box(20, 40, 300, 130, BLACK, 1);
+    lcd_draw_box(0, 40, 319, 110, BLACK, 1);
 
     // Título centrado
-    lcd_puts_x2(120, 24, BLACK, "TARIFA");
+    lcd_puts(40, 24, BLACK, "TARIFA");
 
     // Información de tarifa dentro del rectángulo
-    lcd_puts(24, 72, BLACK, "Precio por minuto: 0,01 euros");
-    lcd_puts(24, 96, BLACK, "Estancia minima:  20 minutos");
-    lcd_puts(24, 120, BLACK, "Estancia maxima: 240 minutos");
+    lcd_puts(24, 52, BLACK, "Precio por minuto: 0,01 euros");
+    lcd_puts(24,76, BLACK, "Estancia minima:  20 minutos");
+    lcd_puts(24, 100, BLACK, "Estancia maxima: 240 minutos");
 
     // Información de plaza
-    lcd_puts_x2(24, 150, BLACK, "Plaza ");
-    lcd_putint_x2(100, 150, BLACK, placeNum);
+    lcd_puts_x2(72, 120, BLACK, "Plaza "+ placeNum);
 
     // Crédito
-    lcd_puts(24, 180, BLACK, "Credito: ");
-    lcd_putint(90, 180, BLACK, credit / 100);
-    lcd_putchar(105, 180, BLACK, ',');
-    if (credit % 100 < 10) {
-        lcd_putchar(115, 180, BLACK, '0');
-    }
-    lcd_putint(125, 180, BLACK, credit % 100);
-    lcd_puts(140, 180, BLACK, " euros");
-
+    lcd_puts(60, 160, BLACK, "Credito:       euros");
+    lcd_puts(72, 172, BLACK, credit/100+','+credit%100);
     // Mensajes finales
-    lcd_puts(24, 204, BLACK, "Inserte monedas");
-    lcd_puts(24, 228, BLACK, "Pulse la pantalla para aceptar");
+    lcd_puts(70, 204, BLACK, "Inserte monedas");
+    lcd_puts(32, 220, BLACK, "Pulse la pantalla para aceptar");
 }
