@@ -23,6 +23,6 @@ void reset_rtc_time(rtc_time_t *time);
 void adjust_rtc_time(rtc_time_t *time);
 
 // Función principal para aplicar los créditos
-void apply_credits(rtc_time_t *time, uint8 credits);
+void apply_credits(rtc_time_t *time, uint16 credits);
 
 #endif /* EXTRA_FUCTIONS_H_ */

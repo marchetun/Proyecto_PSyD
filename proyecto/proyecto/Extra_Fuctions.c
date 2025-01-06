@@ -4,7 +4,7 @@
  *  Created on: 23/12/2024
  *      Author: march
  */
-#include "Extra_Fuctions.h"
+#include <Extra_Fuctions.h>
 
 
 char* calculate_weekday(uint8 week_day) {
@@ -85,7 +85,7 @@ void adjust_rtc_time(rtc_time_t *time) {
 }
 
 
-void apply_credits(rtc_time_t *time, uint8 credits) {
+void apply_credits(rtc_time_t *time, uint16 credits) {
 	    // Si el total supera el rango representable, ajustar primero los créditos
 	    uint16 total_minutes = time->min + credits;
 	    if (total_minutes > 255) {
