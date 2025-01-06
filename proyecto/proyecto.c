@@ -188,7 +188,7 @@ void mainTask(void)
                 if (!parking[selectedPlace - 1].occupied) {
                     showTariffScreen(selectedPlace, credit);
                     state = SHOW_TARIFF;
-                    ticks = 50;
+                    ticks = 500;
                 }
                 else {
                     showPlaceOccupiedMessage(selectedPlace);
@@ -211,42 +211,36 @@ void mainTask(void)
             // Devolvemos las monedas introducidas
             if (credit > 0)
             {
+                coinsMoverMsg.accept = FALSE;
                 coinsMoverMsg.flag = TRUE;
-                credit = 0;
             }
+            credit = 0;
             state = WELCOME_SCREEN;
         }
 
         // Procesamos monedas introducidas
         if (coinAcceptorMsg.flag)
         {
-        	ticks = 50;   /* Restaura el tiempo maximo sin actividad que permanece en este estado */
             coinAcceptorMsg.flag = FALSE;	/* Marca el mensaje como leido */
-
 
             // Verificamos que no nos pasemos del máximo (240 céntimos)
             if (credit + coinAcceptorMsg.cents <= 240)
             {
-            	coinsMoverMsg.accept = TRUE;//acepta monedas
-            	coinsMoverMsg.flag = TRUE;//levanta flag
                 credit += coinAcceptorMsg.cents;
-                coinAcceptorMsg.cents = 0;
                 // Actualizar toda la pantalla de tarifa con el nuevo crédito
                 showTariffScreen(selectedPlace, credit);
-
+                ticks = 500;   /* Restaura el tiempo maximo sin actividad que permanece en este estado */
             }
             else
             {
-            	coinsMoverMsg.accept = FALSE;// no acepta monedas
-            	coinsMoverMsg.flag = TRUE;//levanta flag
+                // Si nos pasamos del máximo, devolvemos todas las monedas
+                coinsMoverMsg.accept = FALSE;
+                coinsMoverMsg.flag = TRUE;
                 credit = 0;
-                coinAcceptorMsg.cents = 0;
-                ticks = 500;  //Restauro ticks se SELECT_PLACE
-                lcd_clear();
-                //Preparo cambio de estado a SELECT_PLACE
-                lcd_puts_x2(24, 24, BLACK, "Seleccione plaza");
-                drawParkingGrid();
                 state = SELECT_PLACE;
+                lcd_clear();
+                lcd_puts_x2(28, 32, BLACK, "Plaza ");
+                drawParkingGrid();
             }
         }
 
@@ -264,14 +258,14 @@ void mainTask(void)
             lcd_puts(24, 48, BLACK, "Saldo insuficiente");
             credit = 0;
             sw_delay_ms(2000);
-            state = SHOW_TARIFF;
             showTariffScreen(selectedPlace, credit);
-            ticks = 50;
+            ticks = 500;
         }
         else // Crédito válido, procesamos el pago
         {
-        	lcd_clear();
-        	lcd_puts(24, 48, BLACK, "Procesando pago...");
+            // Aceptamos las monedas antes de procesar el pago
+            coinsMoverMsg.accept = TRUE;	 /* Envia un mensaje para que las monedas se acepten */
+            coinsMoverMsg.flag = TRUE;
 
             // Obtenemos la hora actual, aunque la estamos obteniendo cada segundo de reloj
             rtc_gettime(&actual_time);
@@ -286,16 +280,12 @@ void mainTask(void)
             // Aplico los creditos
             apply_credits(&parking[selectedPlace - 1].endTime, credit);
 
-
-            // Activamos la impresión del ticket
-                   printTicketFlag = TRUE;
             state = PRINT_TICKET;
-
-            sw_delay_ms(2000);//una vez finalizado pago, delay de lectura
         }
         break;
     case PRINT_TICKET:
-
+        // Activamos la impresión del ticket
+        printTicketFlag = TRUE;
 
         // Esperamos a que se complete la impresión
         if (!printTicketFlag)
@@ -315,7 +305,6 @@ void mainTask(void)
 void ticketPrinterTask(void)//Revisado
 {
     if (printTicketFlag) {
-    	printTicketFlag = FALSE;//bajamos flag
         // Imprimimos una línea de guiones como separador
         uart0_puts("--------------------------------\n");
 
@@ -331,10 +320,11 @@ void ticketPrinterTask(void)//Revisado
         // los estoy teniendo en cuenta, habría que cambiarlo ya que en la demo no tiene en cuenta los segundos
         uart0_puts(calculate_weekday(parking[selectedPlace - 1].endTime.wday) + ',' + parking[selectedPlace - 1].endTime.mday + '/' + parking[selectedPlace - 1].endTime.mon + '/' + parking[selectedPlace - 1].endTime.year + ' ' +
             parking[selectedPlace - 1].endTime.hour + ':' + parking[selectedPlace - 1].endTime.min + ':' + parking[selectedPlace - 1].endTime.sec);
-        uart0_puts("\n");
 
         // Línea separadora final
         uart0_puts("--------------------------------\n");
+
+        printTicketFlag = FALSE;
     }
 }
 
@@ -646,13 +636,11 @@ void showTariffScreen(uint8 placeNum, uint16 credit)
     lcd_puts(24, 100, BLACK, "Estancia maxima: 240 minutos");
 
     // Información de plaza
-    lcd_puts_x2(72, 120, BLACK, "Plaza ");
-    lcd_putint_x2(156, 120, BLACK, placeNum);//putint
+    lcd_puts_x2(72, 120, BLACK, "Plaza "+ placeNum);
 
     // Crédito
-    //lcd_puts(60, 160, BLACK, "Credito:       euros");            putint para que funcione bien
-    lcd_putint(60, 160, BLACK, credit/100);
-    lcd_putint(96, 160, BLACK, credit%100);
+    lcd_puts(60, 160, BLACK, "Credito:       euros");
+    lcd_puts(72, 172, BLACK, credit/100+','+credit%100);
     // Mensajes finales
     lcd_puts(70, 204, BLACK, "Inserte monedas");
     lcd_puts(32, 220, BLACK, "Pulse la pantalla para aceptar");
