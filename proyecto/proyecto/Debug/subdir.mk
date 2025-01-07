@@ -4,14 +4,17 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
+../Extra_Fuctions.c \
 ../kernelcoop.c \
 ../proyecto.c 
 
 OBJS += \
+./Extra_Fuctions.o \
 ./kernelcoop.o \
 ./proyecto.o 
 
 C_DEPS += \
+./Extra_Fuctions.d \
 ./kernelcoop.d \
 ./proyecto.d 
 

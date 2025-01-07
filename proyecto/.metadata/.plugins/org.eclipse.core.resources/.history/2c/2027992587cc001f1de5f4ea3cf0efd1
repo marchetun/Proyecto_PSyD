@@ -140,7 +140,7 @@ void mainTask(void)
 {
     static boolean init = TRUE;
     static parkingState_t state;
-    static uint8 credit;
+    static uint16 credit;
     static uint16 ticks;
 
     if (init)

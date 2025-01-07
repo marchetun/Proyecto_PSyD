@@ -1,0 +1,827 @@
+   1              		.cpu arm7tdmi
+   2              		.fpu softvfp
+   3              		.eabi_attribute 20, 1
+   4              		.eabi_attribute 21, 1
+   5              		.eabi_attribute 23, 3
+   6              		.eabi_attribute 24, 1
+   7              		.eabi_attribute 25, 1
+   8              		.eabi_attribute 26, 1
+   9              		.eabi_attribute 30, 6
+  10              		.eabi_attribute 18, 4
+  11              		.file	"Extra_Fuctions.c"
+  21              	.Ltext0:
+  22              		.file 1 "../Extra_Fuctions.c"
+ 1052              		.align	2
+ 1053              	.LC0:
+ 1054 0000 646F6D00 		.ascii	"dom\000"
+ 1055              		.align	2
+ 1056              	.LC1:
+ 1057 0004 6C756E00 		.ascii	"lun\000"
+ 1058              		.align	2
+ 1059              	.LC2:
+ 1060 0008 6D617200 		.ascii	"mar\000"
+ 1061              		.align	2
+ 1062              	.LC3:
+ 1063 000c 6D696500 		.ascii	"mie\000"
+ 1064              		.align	2
+ 1065              	.LC4:
+ 1066 0010 6A756500 		.ascii	"jue\000"
+ 1067              		.align	2
+ 1068              	.LC5:
+ 1069 0014 76696500 		.ascii	"vie\000"
+ 1070              		.align	2
+ 1071              	.LC6:
+ 1072 0018 73616200 		.ascii	"sab\000"
+ 1073              		.text
+ 1074              		.align	2
+ 1075              		.global	calculate_weekday
+ 1077              	calculate_weekday:
+ 1078              	.LFB0:
+   1:../Extra_Fuctions.c **** /*
+   2:../Extra_Fuctions.c ****  * Extra_Fuctions.c
+   3:../Extra_Fuctions.c ****  *
+   4:../Extra_Fuctions.c ****  *  Created on: 23/12/2024
+   5:../Extra_Fuctions.c ****  *      Author: march
+   6:../Extra_Fuctions.c ****  */
+   7:../Extra_Fuctions.c **** #include "Extra_Fuctions.h"
+   8:../Extra_Fuctions.c **** 
+   9:../Extra_Fuctions.c **** 
+  10:../Extra_Fuctions.c **** char* calculate_weekday(uint8 week_day) {
+ 1079              		.loc 1 10 0
+ 1080              		.cfi_startproc
+ 1081              		@ Function supports interworking.
+ 1082              		@ args = 0, pretend = 0, frame = 8
+ 1083              		@ frame_needed = 1, uses_anonymous_args = 0
+ 1084 0000 0DC0A0E1 		mov	ip, sp
+ 1085              	.LCFI0:
+ 1086              		.cfi_def_cfa_register 12
+ 1087 0004 00D82DE9 		stmfd	sp!, {fp, ip, lr, pc}
+ 1088 0008 04B04CE2 		sub	fp, ip, #4
+ 1089              		.cfi_offset 14, -8
+ 1090              		.cfi_offset 13, -12
+ 1091              		.cfi_offset 11, -16
+ 1092              	.LCFI1:
+ 1093              		.cfi_def_cfa 11, 4
+ 1094 000c 08D04DE2 		sub	sp, sp, #8
+ 1095 0010 0030A0E1 		mov	r3, r0
+ 1096 0014 0D304BE5 		strb	r3, [fp, #-13]
+  11:../Extra_Fuctions.c **** 	switch (week_day) {
+ 1097              		.loc 1 11 0
+ 1098 0018 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 1099 001c 013043E2 		sub	r3, r3, #1
+ 1100 0020 060053E3 		cmp	r3, #6
+ 1101 0024 03F19F97 		ldrls	pc, [pc, r3, asl #2]
+ 1102 0028 140000EA 		b	.L2
+ 1103              	.L10:
+ 1104 002c 48000000 		.word	.L3
+ 1105 0030 50000000 		.word	.L4
+ 1106 0034 58000000 		.word	.L5
+ 1107 0038 60000000 		.word	.L6
+ 1108 003c 68000000 		.word	.L7
+ 1109 0040 70000000 		.word	.L8
+ 1110 0044 78000000 		.word	.L9
+ 1111              	.L3:
+  12:../Extra_Fuctions.c **** 	        case 1: return "dom"; // Domingo
+ 1112              		.loc 1 12 0
+ 1113 0048 44309FE5 		ldr	r3, .L12
+ 1114 004c 0C0000EA 		b	.L11
+ 1115              	.L4:
+  13:../Extra_Fuctions.c **** 	        case 2: return "lun"; // Lunes
+ 1116              		.loc 1 13 0
+ 1117 0050 40309FE5 		ldr	r3, .L12+4
+ 1118 0054 0A0000EA 		b	.L11
+ 1119              	.L5:
+  14:../Extra_Fuctions.c **** 	        case 3: return "mar"; // Martes
+ 1120              		.loc 1 14 0
+ 1121 0058 3C309FE5 		ldr	r3, .L12+8
+ 1122 005c 080000EA 		b	.L11
+ 1123              	.L6:
+  15:../Extra_Fuctions.c **** 	        case 4: return "mie"; // Miércoles
+ 1124              		.loc 1 15 0
+ 1125 0060 38309FE5 		ldr	r3, .L12+12
+ 1126 0064 060000EA 		b	.L11
+ 1127              	.L7:
+  16:../Extra_Fuctions.c **** 	        case 5: return "jue"; // Jueves
+ 1128              		.loc 1 16 0
+ 1129 0068 34309FE5 		ldr	r3, .L12+16
+ 1130 006c 040000EA 		b	.L11
+ 1131              	.L8:
+  17:../Extra_Fuctions.c **** 	        case 6: return "vie"; // Viernes
+ 1132              		.loc 1 17 0
+ 1133 0070 30309FE5 		ldr	r3, .L12+20
+ 1134 0074 020000EA 		b	.L11
+ 1135              	.L9:
+  18:../Extra_Fuctions.c **** 	        case 7: return "sab"; // Sábado
+ 1136              		.loc 1 18 0
+ 1137 0078 2C309FE5 		ldr	r3, .L12+24
+ 1138 007c 000000EA 		b	.L11
+ 1139              	.L2:
+ 1140 0080 FFFFFFEA 		b	.L1
+ 1141              	.L11:
+ 1142              	.L1:
+  19:../Extra_Fuctions.c ****     }
+  20:../Extra_Fuctions.c **** }
+ 1143              		.loc 1 20 0
+ 1144 0084 0300A0E1 		mov	r0, r3
+ 1145 0088 0CD04BE2 		sub	sp, fp, #12
+ 1146 008c 00689DE8 		ldmfd	sp, {fp, sp, lr}
+ 1147 0090 1EFF2FE1 		bx	lr
+ 1148              	.L13:
+ 1149              		.align	2
+ 1150              	.L12:
+ 1151 0094 00000000 		.word	.LC0
+ 1152 0098 04000000 		.word	.LC1
+ 1153 009c 08000000 		.word	.LC2
+ 1154 00a0 0C000000 		.word	.LC3
+ 1155 00a4 10000000 		.word	.LC4
+ 1156 00a8 14000000 		.word	.LC5
+ 1157 00ac 18000000 		.word	.LC6
+ 1158              		.cfi_endproc
+ 1159              	.LFE0:
+ 1161              		.align	2
+ 1162              		.global	dates_comparator
+ 1164              	dates_comparator:
+ 1165              	.LFB1:
+  21:../Extra_Fuctions.c **** boolean dates_comparator(rtc_time_t actual_time, rtc_time_t time){
+ 1166              		.loc 1 21 0
+ 1167              		.cfi_startproc
+ 1168              		@ Function supports interworking.
+ 1169              		@ args = 0, pretend = 0, frame = 16
+ 1170              		@ frame_needed = 1, uses_anonymous_args = 0
+ 1171 00b0 0DC0A0E1 		mov	ip, sp
+ 1172              	.LCFI2:
+ 1173              		.cfi_def_cfa_register 12
+ 1174 00b4 00D82DE9 		stmfd	sp!, {fp, ip, lr, pc}
+ 1175 00b8 04B04CE2 		sub	fp, ip, #4
+ 1176              		.cfi_offset 14, -8
+ 1177              		.cfi_offset 13, -12
+ 1178              		.cfi_offset 11, -16
+ 1179              	.LCFI3:
+ 1180              		.cfi_def_cfa 11, 4
+ 1181 00bc 10D04DE2 		sub	sp, sp, #16
+ 1182 00c0 14C04BE2 		sub	ip, fp, #20
+ 1183 00c4 03008CE8 		stmia	ip, {r0, r1}
+ 1184 00c8 1C104BE2 		sub	r1, fp, #28
+ 1185 00cc 0C0081E8 		stmia	r1, {r2, r3}
+  22:../Extra_Fuctions.c **** 	    // Compara cada campo de mayor a menor granularidad
+  23:../Extra_Fuctions.c **** 	    if (actual_time.year > time.year) return TRUE;
+ 1186              		.loc 1 23 0
+ 1187 00d0 0E205BE5 		ldrb	r2, [fp, #-14]	@ zero_extendqisi2
+ 1188 00d4 16305BE5 		ldrb	r3, [fp, #-22]	@ zero_extendqisi2
+ 1189 00d8 030052E1 		cmp	r2, r3
+ 1190 00dc 0100009A 		bls	.L15
+ 1191              		.loc 1 23 0 is_stmt 0 discriminator 1
+ 1192 00e0 0130A0E3 		mov	r3, #1
+ 1193 00e4 3C0000EA 		b	.L16
+ 1194              	.L15:
+  24:../Extra_Fuctions.c **** 	    if (actual_time.year < time.year) return FALSE;
+ 1195              		.loc 1 24 0 is_stmt 1
+ 1196 00e8 0E205BE5 		ldrb	r2, [fp, #-14]	@ zero_extendqisi2
+ 1197 00ec 16305BE5 		ldrb	r3, [fp, #-22]	@ zero_extendqisi2
+ 1198 00f0 030052E1 		cmp	r2, r3
+ 1199 00f4 0100002A 		bcs	.L17
+ 1200              		.loc 1 24 0 is_stmt 0 discriminator 1
+ 1201 00f8 0030A0E3 		mov	r3, #0
+ 1202 00fc 360000EA 		b	.L16
+ 1203              	.L17:
+  25:../Extra_Fuctions.c **** 
+  26:../Extra_Fuctions.c **** 	    if (actual_time.mon > time.mon) return TRUE;
+ 1204              		.loc 1 26 0 is_stmt 1
+ 1205 0100 0F205BE5 		ldrb	r2, [fp, #-15]	@ zero_extendqisi2
+ 1206 0104 17305BE5 		ldrb	r3, [fp, #-23]	@ zero_extendqisi2
+ 1207 0108 030052E1 		cmp	r2, r3
+ 1208 010c 0100009A 		bls	.L18
+ 1209              		.loc 1 26 0 is_stmt 0 discriminator 1
+ 1210 0110 0130A0E3 		mov	r3, #1
+ 1211 0114 300000EA 		b	.L16
+ 1212              	.L18:
+  27:../Extra_Fuctions.c **** 	    if (actual_time.mon < time.mon) return FALSE;
+ 1213              		.loc 1 27 0 is_stmt 1
+ 1214 0118 0F205BE5 		ldrb	r2, [fp, #-15]	@ zero_extendqisi2
+ 1215 011c 17305BE5 		ldrb	r3, [fp, #-23]	@ zero_extendqisi2
+ 1216 0120 030052E1 		cmp	r2, r3
+ 1217 0124 0100002A 		bcs	.L19
+ 1218              		.loc 1 27 0 is_stmt 0 discriminator 1
+ 1219 0128 0030A0E3 		mov	r3, #0
+ 1220 012c 2A0000EA 		b	.L16
+ 1221              	.L19:
+  28:../Extra_Fuctions.c **** 
+  29:../Extra_Fuctions.c **** 	    if (actual_time.mday > time.mday) return TRUE;
+ 1222              		.loc 1 29 0 is_stmt 1
+ 1223 0130 11205BE5 		ldrb	r2, [fp, #-17]	@ zero_extendqisi2
+ 1224 0134 19305BE5 		ldrb	r3, [fp, #-25]	@ zero_extendqisi2
+ 1225 0138 030052E1 		cmp	r2, r3
+ 1226 013c 0100009A 		bls	.L20
+ 1227              		.loc 1 29 0 is_stmt 0 discriminator 1
+ 1228 0140 0130A0E3 		mov	r3, #1
+ 1229 0144 240000EA 		b	.L16
+ 1230              	.L20:
+  30:../Extra_Fuctions.c **** 	    if (actual_time.mday < time.mday) return FALSE;
+ 1231              		.loc 1 30 0 is_stmt 1
+ 1232 0148 11205BE5 		ldrb	r2, [fp, #-17]	@ zero_extendqisi2
+ 1233 014c 19305BE5 		ldrb	r3, [fp, #-25]	@ zero_extendqisi2
+ 1234 0150 030052E1 		cmp	r2, r3
+ 1235 0154 0100002A 		bcs	.L21
+ 1236              		.loc 1 30 0 is_stmt 0 discriminator 1
+ 1237 0158 0030A0E3 		mov	r3, #0
+ 1238 015c 1E0000EA 		b	.L16
+ 1239              	.L21:
+  31:../Extra_Fuctions.c **** 
+  32:../Extra_Fuctions.c **** 	    if (actual_time.hour > time.hour) return TRUE;
+ 1240              		.loc 1 32 0 is_stmt 1
+ 1241 0160 12205BE5 		ldrb	r2, [fp, #-18]	@ zero_extendqisi2
+ 1242 0164 1A305BE5 		ldrb	r3, [fp, #-26]	@ zero_extendqisi2
+ 1243 0168 030052E1 		cmp	r2, r3
+ 1244 016c 0100009A 		bls	.L22
+ 1245              		.loc 1 32 0 is_stmt 0 discriminator 1
+ 1246 0170 0130A0E3 		mov	r3, #1
+ 1247 0174 180000EA 		b	.L16
+ 1248              	.L22:
+  33:../Extra_Fuctions.c **** 	    if (actual_time.hour < time.hour) return FALSE;
+ 1249              		.loc 1 33 0 is_stmt 1
+ 1250 0178 12205BE5 		ldrb	r2, [fp, #-18]	@ zero_extendqisi2
+ 1251 017c 1A305BE5 		ldrb	r3, [fp, #-26]	@ zero_extendqisi2
+ 1252 0180 030052E1 		cmp	r2, r3
+ 1253 0184 0100002A 		bcs	.L23
+ 1254              		.loc 1 33 0 is_stmt 0 discriminator 1
+ 1255 0188 0030A0E3 		mov	r3, #0
+ 1256 018c 120000EA 		b	.L16
+ 1257              	.L23:
+  34:../Extra_Fuctions.c **** 
+  35:../Extra_Fuctions.c **** 	    if (actual_time.min > time.min) return TRUE;
+ 1258              		.loc 1 35 0 is_stmt 1
+ 1259 0190 13205BE5 		ldrb	r2, [fp, #-19]	@ zero_extendqisi2
+ 1260 0194 1B305BE5 		ldrb	r3, [fp, #-27]	@ zero_extendqisi2
+ 1261 0198 030052E1 		cmp	r2, r3
+ 1262 019c 0100009A 		bls	.L24
+ 1263              		.loc 1 35 0 is_stmt 0 discriminator 1
+ 1264 01a0 0130A0E3 		mov	r3, #1
+ 1265 01a4 0C0000EA 		b	.L16
+ 1266              	.L24:
+  36:../Extra_Fuctions.c **** 	    if (actual_time.min < time.min) return FALSE;
+ 1267              		.loc 1 36 0 is_stmt 1
+ 1268 01a8 13205BE5 		ldrb	r2, [fp, #-19]	@ zero_extendqisi2
+ 1269 01ac 1B305BE5 		ldrb	r3, [fp, #-27]	@ zero_extendqisi2
+ 1270 01b0 030052E1 		cmp	r2, r3
+ 1271 01b4 0100002A 		bcs	.L25
+ 1272              		.loc 1 36 0 is_stmt 0 discriminator 1
+ 1273 01b8 0030A0E3 		mov	r3, #0
+ 1274 01bc 060000EA 		b	.L16
+ 1275              	.L25:
+  37:../Extra_Fuctions.c **** 
+  38:../Extra_Fuctions.c **** 	    if (actual_time.sec >= time.sec) return TRUE;
+ 1276              		.loc 1 38 0 is_stmt 1
+ 1277 01c0 14205BE5 		ldrb	r2, [fp, #-20]	@ zero_extendqisi2
+ 1278 01c4 1C305BE5 		ldrb	r3, [fp, #-28]	@ zero_extendqisi2
+ 1279 01c8 030052E1 		cmp	r2, r3
+ 1280 01cc 0100003A 		bcc	.L26
+ 1281              		.loc 1 38 0 is_stmt 0 discriminator 1
+ 1282 01d0 0130A0E3 		mov	r3, #1
+ 1283 01d4 000000EA 		b	.L16
+ 1284              	.L26:
+  39:../Extra_Fuctions.c **** 
+  40:../Extra_Fuctions.c **** 
+  41:../Extra_Fuctions.c **** 	    return FALSE;
+ 1285              		.loc 1 41 0 is_stmt 1
+ 1286 01d8 0030A0E3 		mov	r3, #0
+ 1287              	.L16:
+  42:../Extra_Fuctions.c **** }
+ 1288              		.loc 1 42 0
+ 1289 01dc 0300A0E1 		mov	r0, r3
+ 1290 01e0 0CD04BE2 		sub	sp, fp, #12
+ 1291 01e4 00689DE8 		ldmfd	sp, {fp, sp, lr}
+ 1292 01e8 1EFF2FE1 		bx	lr
+ 1293              		.cfi_endproc
+ 1294              	.LFE1:
+ 1296              		.align	2
+ 1297              		.global	reset_rtc_time
+ 1299              	reset_rtc_time:
+ 1300              	.LFB2:
+  43:../Extra_Fuctions.c **** void reset_rtc_time(rtc_time_t *time) {
+ 1301              		.loc 1 43 0
+ 1302              		.cfi_startproc
+ 1303              		@ Function supports interworking.
+ 1304              		@ args = 0, pretend = 0, frame = 8
+ 1305              		@ frame_needed = 1, uses_anonymous_args = 0
+ 1306 01ec 0DC0A0E1 		mov	ip, sp
+ 1307              	.LCFI4:
+ 1308              		.cfi_def_cfa_register 12
+ 1309 01f0 00D82DE9 		stmfd	sp!, {fp, ip, lr, pc}
+ 1310 01f4 04B04CE2 		sub	fp, ip, #4
+ 1311              		.cfi_offset 14, -8
+ 1312              		.cfi_offset 13, -12
+ 1313              		.cfi_offset 11, -16
+ 1314              	.LCFI5:
+ 1315              		.cfi_def_cfa 11, 4
+ 1316 01f8 08D04DE2 		sub	sp, sp, #8
+ 1317 01fc 10000BE5 		str	r0, [fp, #-16]
+  44:../Extra_Fuctions.c ****     time->sec = 0;
+ 1318              		.loc 1 44 0
+ 1319 0200 10301BE5 		ldr	r3, [fp, #-16]
+ 1320 0204 0020A0E3 		mov	r2, #0
+ 1321 0208 0020C3E5 		strb	r2, [r3, #0]
+  45:../Extra_Fuctions.c ****     time->min = 0;
+ 1322              		.loc 1 45 0
+ 1323 020c 10301BE5 		ldr	r3, [fp, #-16]
+ 1324 0210 0020A0E3 		mov	r2, #0
+ 1325 0214 0120C3E5 		strb	r2, [r3, #1]
+  46:../Extra_Fuctions.c ****     time->hour = 0;
+ 1326              		.loc 1 46 0
+ 1327 0218 10301BE5 		ldr	r3, [fp, #-16]
+ 1328 021c 0020A0E3 		mov	r2, #0
+ 1329 0220 0220C3E5 		strb	r2, [r3, #2]
+  47:../Extra_Fuctions.c ****     time->mday = 0;
+ 1330              		.loc 1 47 0
+ 1331 0224 10301BE5 		ldr	r3, [fp, #-16]
+ 1332 0228 0020A0E3 		mov	r2, #0
+ 1333 022c 0320C3E5 		strb	r2, [r3, #3]
+  48:../Extra_Fuctions.c ****     time->wday = 0;
+ 1334              		.loc 1 48 0
+ 1335 0230 10301BE5 		ldr	r3, [fp, #-16]
+ 1336 0234 0020A0E3 		mov	r2, #0
+ 1337 0238 0420C3E5 		strb	r2, [r3, #4]
+  49:../Extra_Fuctions.c ****     time->mon = 0;
+ 1338              		.loc 1 49 0
+ 1339 023c 10301BE5 		ldr	r3, [fp, #-16]
+ 1340 0240 0020A0E3 		mov	r2, #0
+ 1341 0244 0520C3E5 		strb	r2, [r3, #5]
+  50:../Extra_Fuctions.c ****     time->year = 0;
+ 1342              		.loc 1 50 0
+ 1343 0248 10301BE5 		ldr	r3, [fp, #-16]
+ 1344 024c 0020A0E3 		mov	r2, #0
+ 1345 0250 0620C3E5 		strb	r2, [r3, #6]
+  51:../Extra_Fuctions.c **** }
+ 1346              		.loc 1 51 0
+ 1347 0254 0CD04BE2 		sub	sp, fp, #12
+ 1348 0258 00689DE8 		ldmfd	sp, {fp, sp, lr}
+ 1349 025c 1EFF2FE1 		bx	lr
+ 1350              		.cfi_endproc
+ 1351              	.LFE2:
+ 1353              		.global	__aeabi_uidiv
+ 1354              		.global	__aeabi_idivmod
+ 1355              		.align	2
+ 1356              		.global	adjust_rtc_time
+ 1358              	adjust_rtc_time:
+ 1359              	.LFB3:
+  52:../Extra_Fuctions.c **** // Función para ajustar los límites de cada campo
+  53:../Extra_Fuctions.c **** void adjust_rtc_time(rtc_time_t *time) {
+ 1360              		.loc 1 53 0
+ 1361              		.cfi_startproc
+ 1362              		@ Function supports interworking.
+ 1363              		@ args = 0, pretend = 0, frame = 16
+ 1364              		@ frame_needed = 1, uses_anonymous_args = 0
+ 1365 0260 0DC0A0E1 		mov	ip, sp
+ 1366              	.LCFI6:
+ 1367              		.cfi_def_cfa_register 12
+ 1368 0264 10D82DE9 		stmfd	sp!, {r4, fp, ip, lr, pc}
+ 1369 0268 04B04CE2 		sub	fp, ip, #4
+ 1370              		.cfi_offset 14, -8
+ 1371              		.cfi_offset 13, -12
+ 1372              		.cfi_offset 11, -16
+ 1373              		.cfi_offset 4, -20
+ 1374              	.LCFI7:
+ 1375              		.cfi_def_cfa 11, 4
+ 1376 026c 14D04DE2 		sub	sp, sp, #20
+ 1377 0270 20000BE5 		str	r0, [fp, #-32]
+  54:../Extra_Fuctions.c ****     static const uint8 days_in_month[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+  55:../Extra_Fuctions.c **** 
+  56:../Extra_Fuctions.c ****     if (time->sec >= 60) {
+ 1378              		.loc 1 56 0
+ 1379 0274 20301BE5 		ldr	r3, [fp, #-32]
+ 1380 0278 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 1381 027c 3B0053E3 		cmp	r3, #59
+ 1382 0280 1800009A 		bls	.L29
+  57:../Extra_Fuctions.c ****         time->min += time->sec / 60;
+ 1383              		.loc 1 57 0
+ 1384 0284 20301BE5 		ldr	r3, [fp, #-32]
+ 1385 0288 0120D3E5 		ldrb	r2, [r3, #1]	@ zero_extendqisi2
+ 1386 028c 20301BE5 		ldr	r3, [fp, #-32]
+ 1387 0290 0010D3E5 		ldrb	r1, [r3, #0]	@ zero_extendqisi2
+ 1388 0294 64339FE5 		ldr	r3, .L37
+ 1389 0298 910383E0 		umull	r0, r3, r1, r3
+ 1390 029c A332A0E1 		mov	r3, r3, lsr #5
+ 1391 02a0 FF3003E2 		and	r3, r3, #255
+ 1392 02a4 033082E0 		add	r3, r2, r3
+ 1393 02a8 FF2003E2 		and	r2, r3, #255
+ 1394 02ac 20301BE5 		ldr	r3, [fp, #-32]
+ 1395 02b0 0120C3E5 		strb	r2, [r3, #1]
+  58:../Extra_Fuctions.c ****         time->sec %= 60;
+ 1396              		.loc 1 58 0
+ 1397 02b4 20301BE5 		ldr	r3, [fp, #-32]
+ 1398 02b8 0020D3E5 		ldrb	r2, [r3, #0]	@ zero_extendqisi2
+ 1399 02bc 3C339FE5 		ldr	r3, .L37
+ 1400 02c0 921383E0 		umull	r1, r3, r2, r3
+ 1401 02c4 A312A0E1 		mov	r1, r3, lsr #5
+ 1402 02c8 0130A0E1 		mov	r3, r1
+ 1403 02cc 0332A0E1 		mov	r3, r3, asl #4
+ 1404 02d0 033061E0 		rsb	r3, r1, r3
+ 1405 02d4 0331A0E1 		mov	r3, r3, asl #2
+ 1406 02d8 023063E0 		rsb	r3, r3, r2
+ 1407 02dc FF2003E2 		and	r2, r3, #255
+ 1408 02e0 20301BE5 		ldr	r3, [fp, #-32]
+ 1409 02e4 0020C3E5 		strb	r2, [r3, #0]
+ 1410              	.L29:
+  59:../Extra_Fuctions.c ****     }
+  60:../Extra_Fuctions.c ****     if (time->min >= 60) {
+ 1411              		.loc 1 60 0
+ 1412 02e8 20301BE5 		ldr	r3, [fp, #-32]
+ 1413 02ec 0130D3E5 		ldrb	r3, [r3, #1]	@ zero_extendqisi2
+ 1414 02f0 3B0053E3 		cmp	r3, #59
+ 1415 02f4 1800009A 		bls	.L30
+  61:../Extra_Fuctions.c ****         time->hour += time->min / 60;
+ 1416              		.loc 1 61 0
+ 1417 02f8 20301BE5 		ldr	r3, [fp, #-32]
+ 1418 02fc 0220D3E5 		ldrb	r2, [r3, #2]	@ zero_extendqisi2
+ 1419 0300 20301BE5 		ldr	r3, [fp, #-32]
+ 1420 0304 0110D3E5 		ldrb	r1, [r3, #1]	@ zero_extendqisi2
+ 1421 0308 F0329FE5 		ldr	r3, .L37
+ 1422 030c 910383E0 		umull	r0, r3, r1, r3
+ 1423 0310 A332A0E1 		mov	r3, r3, lsr #5
+ 1424 0314 FF3003E2 		and	r3, r3, #255
+ 1425 0318 033082E0 		add	r3, r2, r3
+ 1426 031c FF2003E2 		and	r2, r3, #255
+ 1427 0320 20301BE5 		ldr	r3, [fp, #-32]
+ 1428 0324 0220C3E5 		strb	r2, [r3, #2]
+  62:../Extra_Fuctions.c ****         time->min %= 60;
+ 1429              		.loc 1 62 0
+ 1430 0328 20301BE5 		ldr	r3, [fp, #-32]
+ 1431 032c 0120D3E5 		ldrb	r2, [r3, #1]	@ zero_extendqisi2
+ 1432 0330 C8329FE5 		ldr	r3, .L37
+ 1433 0334 921383E0 		umull	r1, r3, r2, r3
+ 1434 0338 A312A0E1 		mov	r1, r3, lsr #5
+ 1435 033c 0130A0E1 		mov	r3, r1
+ 1436 0340 0332A0E1 		mov	r3, r3, asl #4
+ 1437 0344 033061E0 		rsb	r3, r1, r3
+ 1438 0348 0331A0E1 		mov	r3, r3, asl #2
+ 1439 034c 023063E0 		rsb	r3, r3, r2
+ 1440 0350 FF2003E2 		and	r2, r3, #255
+ 1441 0354 20301BE5 		ldr	r3, [fp, #-32]
+ 1442 0358 0120C3E5 		strb	r2, [r3, #1]
+ 1443              	.L30:
+  63:../Extra_Fuctions.c ****     }
+  64:../Extra_Fuctions.c ****     if (time->hour >= 24) {
+ 1444              		.loc 1 64 0
+ 1445 035c 20301BE5 		ldr	r3, [fp, #-32]
+ 1446 0360 0230D3E5 		ldrb	r3, [r3, #2]	@ zero_extendqisi2
+ 1447 0364 170053E3 		cmp	r3, #23
+ 1448 0368 1800009A 		bls	.L31
+  65:../Extra_Fuctions.c ****         time->mday += time->hour / 24;
+ 1449              		.loc 1 65 0
+ 1450 036c 20301BE5 		ldr	r3, [fp, #-32]
+ 1451 0370 0320D3E5 		ldrb	r2, [r3, #3]	@ zero_extendqisi2
+ 1452 0374 20301BE5 		ldr	r3, [fp, #-32]
+ 1453 0378 0210D3E5 		ldrb	r1, [r3, #2]	@ zero_extendqisi2
+ 1454 037c 80329FE5 		ldr	r3, .L37+4
+ 1455 0380 910383E0 		umull	r0, r3, r1, r3
+ 1456 0384 2332A0E1 		mov	r3, r3, lsr #4
+ 1457 0388 FF3003E2 		and	r3, r3, #255
+ 1458 038c 033082E0 		add	r3, r2, r3
+ 1459 0390 FF2003E2 		and	r2, r3, #255
+ 1460 0394 20301BE5 		ldr	r3, [fp, #-32]
+ 1461 0398 0320C3E5 		strb	r2, [r3, #3]
+  66:../Extra_Fuctions.c ****         time->hour %= 24;
+ 1462              		.loc 1 66 0
+ 1463 039c 20301BE5 		ldr	r3, [fp, #-32]
+ 1464 03a0 0220D3E5 		ldrb	r2, [r3, #2]	@ zero_extendqisi2
+ 1465 03a4 58329FE5 		ldr	r3, .L37+4
+ 1466 03a8 921383E0 		umull	r1, r3, r2, r3
+ 1467 03ac 2312A0E1 		mov	r1, r3, lsr #4
+ 1468 03b0 0130A0E1 		mov	r3, r1
+ 1469 03b4 8330A0E1 		mov	r3, r3, asl #1
+ 1470 03b8 013083E0 		add	r3, r3, r1
+ 1471 03bc 8331A0E1 		mov	r3, r3, asl #3
+ 1472 03c0 023063E0 		rsb	r3, r3, r2
+ 1473 03c4 FF2003E2 		and	r2, r3, #255
+ 1474 03c8 20301BE5 		ldr	r3, [fp, #-32]
+ 1475 03cc 0220C3E5 		strb	r2, [r3, #2]
+ 1476              	.L31:
+  67:../Extra_Fuctions.c ****     }
+  68:../Extra_Fuctions.c **** 
+  69:../Extra_Fuctions.c ****     // Ajustar días y meses
+  70:../Extra_Fuctions.c ****     uint8 max_days = days_in_month[time->mon - 1];
+ 1477              		.loc 1 70 0
+ 1478 03d0 20301BE5 		ldr	r3, [fp, #-32]
+ 1479 03d4 0530D3E5 		ldrb	r3, [r3, #5]	@ zero_extendqisi2
+ 1480 03d8 013043E2 		sub	r3, r3, #1
+ 1481 03dc 24229FE5 		ldr	r2, .L37+8
+ 1482 03e0 0330D2E7 		ldrb	r3, [r2, r3]
+ 1483 03e4 15304BE5 		strb	r3, [fp, #-21]
+  71:../Extra_Fuctions.c ****     if (time->mon == 2 && ((time->year % 4 == 0 && time->year % 100 != 0) || time->year % 400 == 0)
+ 1484              		.loc 1 71 0
+ 1485 03e8 20301BE5 		ldr	r3, [fp, #-32]
+ 1486 03ec 0530D3E5 		ldrb	r3, [r3, #5]	@ zero_extendqisi2
+ 1487 03f0 020053E3 		cmp	r3, #2
+ 1488 03f4 2700001A 		bne	.L32
+ 1489              		.loc 1 71 0 is_stmt 0 discriminator 1
+ 1490 03f8 20301BE5 		ldr	r3, [fp, #-32]
+ 1491 03fc 0630D3E5 		ldrb	r3, [r3, #6]	@ zero_extendqisi2
+ 1492 0400 033003E2 		and	r3, r3, #3
+ 1493 0404 FF3003E2 		and	r3, r3, #255
+ 1494 0408 000053E3 		cmp	r3, #0
+ 1495 040c 0E00001A 		bne	.L33
+ 1496 0410 20301BE5 		ldr	r3, [fp, #-32]
+ 1497 0414 0620D3E5 		ldrb	r2, [r3, #6]	@ zero_extendqisi2
+ 1498 0418 EC319FE5 		ldr	r3, .L37+12
+ 1499 041c 920383E0 		umull	r0, r3, r2, r3
+ 1500 0420 A312A0E1 		mov	r1, r3, lsr #5
+ 1501 0424 0130A0E1 		mov	r3, r1
+ 1502 0428 0331A0E1 		mov	r3, r3, asl #2
+ 1503 042c 013083E0 		add	r3, r3, r1
+ 1504 0430 0311A0E1 		mov	r1, r3, asl #2
+ 1505 0434 013083E0 		add	r3, r3, r1
+ 1506 0438 0331A0E1 		mov	r3, r3, asl #2
+ 1507 043c 023063E0 		rsb	r3, r3, r2
+ 1508 0440 FF3003E2 		and	r3, r3, #255
+ 1509 0444 000053E3 		cmp	r3, #0
+ 1510 0448 1000001A 		bne	.L34
+ 1511              	.L33:
+ 1512              		.loc 1 71 0 discriminator 2
+ 1513 044c 20301BE5 		ldr	r3, [fp, #-32]
+ 1514 0450 0630D3E5 		ldrb	r3, [r3, #6]	@ zero_extendqisi2
+ 1515 0454 0310A0E1 		mov	r1, r3
+ 1516 0458 AC319FE5 		ldr	r3, .L37+12
+ 1517 045c 9123C3E0 		smull	r2, r3, r1, r3
+ 1518 0460 C323A0E1 		mov	r2, r3, asr #7
+ 1519 0464 C13FA0E1 		mov	r3, r1, asr #31
+ 1520 0468 022063E0 		rsb	r2, r3, r2
+ 1521 046c 0230A0E1 		mov	r3, r2
+ 1522 0470 0331A0E1 		mov	r3, r3, asl #2
+ 1523 0474 023083E0 		add	r3, r3, r2
+ 1524 0478 0321A0E1 		mov	r2, r3, asl #2
+ 1525 047c 023083E0 		add	r3, r3, r2
+ 1526 0480 0332A0E1 		mov	r3, r3, asl #4
+ 1527 0484 012063E0 		rsb	r2, r3, r1
+ 1528 0488 000052E3 		cmp	r2, #0
+ 1529 048c 0100001A 		bne	.L32
+ 1530              	.L34:
+  72:../Extra_Fuctions.c ****         max_days = 29; // Año bisiesto
+ 1531              		.loc 1 72 0 is_stmt 1
+ 1532 0490 1D30A0E3 		mov	r3, #29
+ 1533 0494 15304BE5 		strb	r3, [fp, #-21]
+ 1534              	.L32:
+  73:../Extra_Fuctions.c ****     }
+  74:../Extra_Fuctions.c ****     if (time->mday > max_days) {
+ 1535              		.loc 1 74 0
+ 1536 0498 20301BE5 		ldr	r3, [fp, #-32]
+ 1537 049c 0330D3E5 		ldrb	r3, [r3, #3]	@ zero_extendqisi2
+ 1538 04a0 15205BE5 		ldrb	r2, [fp, #-21]	@ zero_extendqisi2
+ 1539 04a4 030052E1 		cmp	r2, r3
+ 1540 04a8 1A00002A 		bcs	.L35
+  75:../Extra_Fuctions.c ****         time->mon += time->mday / max_days;
+ 1541              		.loc 1 75 0
+ 1542 04ac 20301BE5 		ldr	r3, [fp, #-32]
+ 1543 04b0 0540D3E5 		ldrb	r4, [r3, #5]	@ zero_extendqisi2
+ 1544 04b4 20301BE5 		ldr	r3, [fp, #-32]
+ 1545 04b8 0320D3E5 		ldrb	r2, [r3, #3]	@ zero_extendqisi2
+ 1546 04bc 15305BE5 		ldrb	r3, [fp, #-21]	@ zero_extendqisi2
+ 1547 04c0 0200A0E1 		mov	r0, r2
+ 1548 04c4 0310A0E1 		mov	r1, r3
+ 1549 04c8 FEFFFFEB 		bl	__aeabi_uidiv
+ 1550 04cc 0030A0E1 		mov	r3, r0
+ 1551 04d0 FF3003E2 		and	r3, r3, #255
+ 1552 04d4 033084E0 		add	r3, r4, r3
+ 1553 04d8 FF2003E2 		and	r2, r3, #255
+ 1554 04dc 20301BE5 		ldr	r3, [fp, #-32]
+ 1555 04e0 0520C3E5 		strb	r2, [r3, #5]
+  76:../Extra_Fuctions.c ****         time->mday = (time->mday - 1) % max_days + 1;
+ 1556              		.loc 1 76 0
+ 1557 04e4 20301BE5 		ldr	r3, [fp, #-32]
+ 1558 04e8 0330D3E5 		ldrb	r3, [r3, #3]	@ zero_extendqisi2
+ 1559 04ec 012043E2 		sub	r2, r3, #1
+ 1560 04f0 15305BE5 		ldrb	r3, [fp, #-21]	@ zero_extendqisi2
+ 1561 04f4 0200A0E1 		mov	r0, r2
+ 1562 04f8 0310A0E1 		mov	r1, r3
+ 1563 04fc FEFFFFEB 		bl	__aeabi_idivmod
+ 1564 0500 0130A0E1 		mov	r3, r1
+ 1565 0504 FF3003E2 		and	r3, r3, #255
+ 1566 0508 013083E2 		add	r3, r3, #1
+ 1567 050c FF2003E2 		and	r2, r3, #255
+ 1568 0510 20301BE5 		ldr	r3, [fp, #-32]
+ 1569 0514 0320C3E5 		strb	r2, [r3, #3]
+ 1570              	.L35:
+  77:../Extra_Fuctions.c ****     }
+  78:../Extra_Fuctions.c ****     if (time->mon > 12) {
+ 1571              		.loc 1 78 0
+ 1572 0518 20301BE5 		ldr	r3, [fp, #-32]
+ 1573 051c 0530D3E5 		ldrb	r3, [r3, #5]	@ zero_extendqisi2
+ 1574 0520 0C0053E3 		cmp	r3, #12
+ 1575 0524 1D00009A 		bls	.L36
+  79:../Extra_Fuctions.c ****         time->year += time->mon / 12;
+ 1576              		.loc 1 79 0
+ 1577 0528 20301BE5 		ldr	r3, [fp, #-32]
+ 1578 052c 0620D3E5 		ldrb	r2, [r3, #6]	@ zero_extendqisi2
+ 1579 0530 20301BE5 		ldr	r3, [fp, #-32]
+ 1580 0534 0510D3E5 		ldrb	r1, [r3, #5]	@ zero_extendqisi2
+ 1581 0538 C4309FE5 		ldr	r3, .L37+4
+ 1582 053c 910383E0 		umull	r0, r3, r1, r3
+ 1583 0540 A331A0E1 		mov	r3, r3, lsr #3
+ 1584 0544 FF3003E2 		and	r3, r3, #255
+ 1585 0548 033082E0 		add	r3, r2, r3
+ 1586 054c FF2003E2 		and	r2, r3, #255
+ 1587 0550 20301BE5 		ldr	r3, [fp, #-32]
+ 1588 0554 0620C3E5 		strb	r2, [r3, #6]
+  80:../Extra_Fuctions.c ****         time->mon = (time->mon - 1) % 12 + 1;
+ 1589              		.loc 1 80 0
+ 1590 0558 20301BE5 		ldr	r3, [fp, #-32]
+ 1591 055c 0530D3E5 		ldrb	r3, [r3, #5]	@ zero_extendqisi2
+ 1592 0560 011043E2 		sub	r1, r3, #1
+ 1593 0564 A4309FE5 		ldr	r3, .L37+16
+ 1594 0568 9123C3E0 		smull	r2, r3, r1, r3
+ 1595 056c C320A0E1 		mov	r2, r3, asr #1
+ 1596 0570 C13FA0E1 		mov	r3, r1, asr #31
+ 1597 0574 022063E0 		rsb	r2, r3, r2
+ 1598 0578 0230A0E1 		mov	r3, r2
+ 1599 057c 8330A0E1 		mov	r3, r3, asl #1
+ 1600 0580 023083E0 		add	r3, r3, r2
+ 1601 0584 0331A0E1 		mov	r3, r3, asl #2
+ 1602 0588 012063E0 		rsb	r2, r3, r1
+ 1603 058c FF3002E2 		and	r3, r2, #255
+ 1604 0590 013083E2 		add	r3, r3, #1
+ 1605 0594 FF2003E2 		and	r2, r3, #255
+ 1606 0598 20301BE5 		ldr	r3, [fp, #-32]
+ 1607 059c 0520C3E5 		strb	r2, [r3, #5]
+ 1608              	.L36:
+  81:../Extra_Fuctions.c ****     }
+  82:../Extra_Fuctions.c **** 
+  83:../Extra_Fuctions.c ****     // Ajustar día de la semana
+  84:../Extra_Fuctions.c ****     time->wday = ((time->wday - 1 + time->mday) % 7) + 1;
+ 1609              		.loc 1 84 0
+ 1610 05a0 20301BE5 		ldr	r3, [fp, #-32]
+ 1611 05a4 0430D3E5 		ldrb	r3, [r3, #4]	@ zero_extendqisi2
+ 1612 05a8 012043E2 		sub	r2, r3, #1
+ 1613 05ac 20301BE5 		ldr	r3, [fp, #-32]
+ 1614 05b0 0330D3E5 		ldrb	r3, [r3, #3]	@ zero_extendqisi2
+ 1615 05b4 031082E0 		add	r1, r2, r3
+ 1616 05b8 54309FE5 		ldr	r3, .L37+20
+ 1617 05bc 9103C3E0 		smull	r0, r3, r1, r3
+ 1618 05c0 013083E0 		add	r3, r3, r1
+ 1619 05c4 4321A0E1 		mov	r2, r3, asr #2
+ 1620 05c8 C13FA0E1 		mov	r3, r1, asr #31
+ 1621 05cc 022063E0 		rsb	r2, r3, r2
+ 1622 05d0 0230A0E1 		mov	r3, r2
+ 1623 05d4 8331A0E1 		mov	r3, r3, asl #3
+ 1624 05d8 033062E0 		rsb	r3, r2, r3
+ 1625 05dc 012063E0 		rsb	r2, r3, r1
+ 1626 05e0 FF3002E2 		and	r3, r2, #255
+ 1627 05e4 013083E2 		add	r3, r3, #1
+ 1628 05e8 FF2003E2 		and	r2, r3, #255
+ 1629 05ec 20301BE5 		ldr	r3, [fp, #-32]
+ 1630 05f0 0420C3E5 		strb	r2, [r3, #4]
+  85:../Extra_Fuctions.c **** }
+ 1631              		.loc 1 85 0
+ 1632 05f4 10D04BE2 		sub	sp, fp, #16
+ 1633 05f8 10689DE8 		ldmfd	sp, {r4, fp, sp, lr}
+ 1634 05fc 1EFF2FE1 		bx	lr
+ 1635              	.L38:
+ 1636              		.align	2
+ 1637              	.L37:
+ 1638 0600 89888888 		.word	-2004318071
+ 1639 0604 ABAAAAAA 		.word	-1431655765
+ 1640 0608 1C000000 		.word	days_in_month.3985
+ 1641 060c 1F85EB51 		.word	1374389535
+ 1642 0610 ABAAAA2A 		.word	715827883
+ 1643 0614 93244992 		.word	-1840700269
+ 1644              		.cfi_endproc
+ 1645              	.LFE3:
+ 1647              		.align	2
+ 1648              		.global	apply_credits
+ 1650              	apply_credits:
+ 1651              	.LFB4:
+  86:../Extra_Fuctions.c **** 
+  87:../Extra_Fuctions.c **** 
+  88:../Extra_Fuctions.c **** void apply_credits(rtc_time_t *time, uint8 credits) {
+ 1652              		.loc 1 88 0
+ 1653              		.cfi_startproc
+ 1654              		@ Function supports interworking.
+ 1655              		@ args = 0, pretend = 0, frame = 16
+ 1656              		@ frame_needed = 1, uses_anonymous_args = 0
+ 1657 0618 0DC0A0E1 		mov	ip, sp
+ 1658              	.LCFI8:
+ 1659              		.cfi_def_cfa_register 12
+ 1660 061c 00D82DE9 		stmfd	sp!, {fp, ip, lr, pc}
+ 1661 0620 04B04CE2 		sub	fp, ip, #4
+ 1662              		.cfi_offset 14, -8
+ 1663              		.cfi_offset 13, -12
+ 1664              		.cfi_offset 11, -16
+ 1665              	.LCFI9:
+ 1666              		.cfi_def_cfa 11, 4
+ 1667 0624 10D04DE2 		sub	sp, sp, #16
+ 1668 0628 18000BE5 		str	r0, [fp, #-24]
+ 1669 062c 0130A0E1 		mov	r3, r1
+ 1670 0630 19304BE5 		strb	r3, [fp, #-25]
+  89:../Extra_Fuctions.c **** 	    // Si el total supera el rango representable, ajustar primero los créditos
+  90:../Extra_Fuctions.c **** 	    uint16 total_minutes = time->min + credits;
+ 1671              		.loc 1 90 0
+ 1672 0634 18301BE5 		ldr	r3, [fp, #-24]
+ 1673 0638 0130D3E5 		ldrb	r3, [r3, #1]	@ zero_extendqisi2
+ 1674 063c 0320A0E1 		mov	r2, r3
+ 1675 0640 19305BE5 		ldrb	r3, [fp, #-25]	@ zero_extendqisi2
+ 1676 0644 0338A0E1 		mov	r3, r3, asl #16
+ 1677 0648 2338A0E1 		mov	r3, r3, lsr #16
+ 1678 064c 033082E0 		add	r3, r2, r3
+ 1679 0650 BE304BE1 		strh	r3, [fp, #-14]	@ movhi
+  91:../Extra_Fuctions.c **** 	    if (total_minutes > 255) {
+ 1680              		.loc 1 91 0
+ 1681 0654 BE305BE1 		ldrh	r3, [fp, #-14]
+ 1682 0658 FF0053E3 		cmp	r3, #255
+ 1683 065c 1B00009A 		bls	.L40
+ 1684              	.LBB2:
+  92:../Extra_Fuctions.c **** 	        uint16 extra_hours = total_minutes / 60; // Horas completas adicionales
+ 1685              		.loc 1 92 0
+ 1686 0660 BE205BE1 		ldrh	r2, [fp, #-14]
+ 1687 0664 88309FE5 		ldr	r3, .L42
+ 1688 0668 921383E0 		umull	r1, r3, r2, r3
+ 1689 066c A332A0E1 		mov	r3, r3, lsr #5
+ 1690 0670 B0314BE1 		strh	r3, [fp, #-16]	@ movhi
+  93:../Extra_Fuctions.c **** 	        time->hour += extra_hours;
+ 1691              		.loc 1 93 0
+ 1692 0674 18301BE5 		ldr	r3, [fp, #-24]
+ 1693 0678 0220D3E5 		ldrb	r2, [r3, #2]	@ zero_extendqisi2
+ 1694 067c B0315BE1 		ldrh	r3, [fp, #-16]	@ movhi
+ 1695 0680 FF3003E2 		and	r3, r3, #255
+ 1696 0684 033082E0 		add	r3, r2, r3
+ 1697 0688 FF2003E2 		and	r2, r3, #255
+ 1698 068c 18301BE5 		ldr	r3, [fp, #-24]
+ 1699 0690 0220C3E5 		strb	r2, [r3, #2]
+  94:../Extra_Fuctions.c **** 	        time->min = total_minutes % 60; // Restante de minutos
+ 1700              		.loc 1 94 0
+ 1701 0694 BE205BE1 		ldrh	r2, [fp, #-14]
+ 1702 0698 54309FE5 		ldr	r3, .L42
+ 1703 069c 921383E0 		umull	r1, r3, r2, r3
+ 1704 06a0 A312A0E1 		mov	r1, r3, lsr #5
+ 1705 06a4 0130A0E1 		mov	r3, r1
+ 1706 06a8 0332A0E1 		mov	r3, r3, asl #4
+ 1707 06ac 033061E0 		rsb	r3, r1, r3
+ 1708 06b0 0331A0E1 		mov	r3, r3, asl #2
+ 1709 06b4 023063E0 		rsb	r3, r3, r2
+ 1710 06b8 0338A0E1 		mov	r3, r3, asl #16
+ 1711 06bc 2338A0E1 		mov	r3, r3, lsr #16
+ 1712 06c0 FF2003E2 		and	r2, r3, #255
+ 1713 06c4 18301BE5 		ldr	r3, [fp, #-24]
+ 1714 06c8 0120C3E5 		strb	r2, [r3, #1]
+ 1715 06cc 030000EA 		b	.L41
+ 1716              	.L40:
+ 1717              	.LBE2:
+  95:../Extra_Fuctions.c **** 	    } else {
+  96:../Extra_Fuctions.c **** 	        time->min = total_minutes;
+ 1718              		.loc 1 96 0
+ 1719 06d0 BE305BE1 		ldrh	r3, [fp, #-14]	@ movhi
+ 1720 06d4 FF2003E2 		and	r2, r3, #255
+ 1721 06d8 18301BE5 		ldr	r3, [fp, #-24]
+ 1722 06dc 0120C3E5 		strb	r2, [r3, #1]
+ 1723              	.L41:
+  97:../Extra_Fuctions.c **** 	    }
+  98:../Extra_Fuctions.c ****     adjust_rtc_time(time); // Ajustar los campos de la estructura
+ 1724              		.loc 1 98 0
+ 1725 06e0 18001BE5 		ldr	r0, [fp, #-24]
+ 1726 06e4 FEFFFFEB 		bl	adjust_rtc_time
+  99:../Extra_Fuctions.c **** }
+ 1727              		.loc 1 99 0
+ 1728 06e8 0CD04BE2 		sub	sp, fp, #12
+ 1729 06ec 00689DE8 		ldmfd	sp, {fp, sp, lr}
+ 1730 06f0 1EFF2FE1 		bx	lr
+ 1731              	.L43:
+ 1732              		.align	2
+ 1733              	.L42:
+ 1734 06f4 89888888 		.word	-2004318071
+ 1735              		.cfi_endproc
+ 1736              	.LFE4:
+ 1738              		.section	.rodata
+ 1739              		.align	2
+ 1742              	days_in_month.3985:
+ 1743 001c 1F       		.byte	31
+ 1744 001d 1C       		.byte	28
+ 1745 001e 1F       		.byte	31
+ 1746 001f 1E       		.byte	30
+ 1747 0020 1F       		.byte	31
+ 1748 0021 1E       		.byte	30
+ 1749 0022 1F       		.byte	31
+ 1750 0023 1F       		.byte	31
+ 1751 0024 1E       		.byte	30
+ 1752 0025 1F       		.byte	31
+ 1753 0026 1E       		.byte	30
+ 1754 0027 1F       		.byte	31
+ 1755              		.text
+ 1756              	.Letext0:
+DEFINED SYMBOLS
+                            *ABS*:00000000 Extra_Fuctions.c
+C:\Users\march\AppData\Local\Temp\ccuabshi.s:1052   .rodata:00000000 $d
+C:\Users\march\AppData\Local\Temp\ccuabshi.s:1074   .text:00000000 $a
+C:\Users\march\AppData\Local\Temp\ccuabshi.s:1077   .text:00000000 calculate_weekday
+C:\Users\march\AppData\Local\Temp\ccuabshi.s:1104   .text:0000002c $d
+C:\Users\march\AppData\Local\Temp\ccuabshi.s:1113   .text:00000048 $a
+C:\Users\march\AppData\Local\Temp\ccuabshi.s:1151   .text:00000094 $d
+C:\Users\march\AppData\Local\Temp\ccuabshi.s:1161   .text:000000b0 $a
+C:\Users\march\AppData\Local\Temp\ccuabshi.s:1164   .text:000000b0 dates_comparator
+C:\Users\march\AppData\Local\Temp\ccuabshi.s:1299   .text:000001ec reset_rtc_time
+C:\Users\march\AppData\Local\Temp\ccuabshi.s:1358   .text:00000260 adjust_rtc_time
+C:\Users\march\AppData\Local\Temp\ccuabshi.s:1638   .text:00000600 $d
+C:\Users\march\AppData\Local\Temp\ccuabshi.s:1742   .rodata:0000001c days_in_month.3985
+C:\Users\march\AppData\Local\Temp\ccuabshi.s:1647   .text:00000618 $a
+C:\Users\march\AppData\Local\Temp\ccuabshi.s:1650   .text:00000618 apply_credits
+C:\Users\march\AppData\Local\Temp\ccuabshi.s:1734   .text:000006f4 $d
+                     .debug_frame:00000010 $d
+
+UNDEFINED SYMBOLS
+__aeabi_uidiv
+__aeabi_idivmod

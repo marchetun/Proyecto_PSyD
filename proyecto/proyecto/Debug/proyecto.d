@@ -4,7 +4,7 @@ proyecto.d proyecto.o: ../proyecto.c ../../BSP/include/s3c44b0x.h \
  ../../BSP/include/segs.h ../../BSP/include/uart.h \
  ../../BSP/include/rtc.h ../../BSP/include/timers.h \
  ../../BSP/include/keypad.h ../../BSP/include/lcd.h \
- ../../BSP/include/ts.h ../kernelcoop.h
+ ../../BSP/include/ts.h ../Extra_Fuctions.h ../kernelcoop.h
 
 ../../BSP/include/s3c44b0x.h:
 
@@ -29,5 +29,7 @@ proyecto.d proyecto.o: ../proyecto.c ../../BSP/include/s3c44b0x.h \
 ../../BSP/include/lcd.h:
 
 ../../BSP/include/ts.h:
+
+../Extra_Fuctions.h:
 
 ../kernelcoop.h:
