@@ -253,7 +253,6 @@ void mainTask(void)
                 lcd_clear();
                 //Preparo cambio de estado a SELECT_PLACE
                 lcd_puts_x2(48, 54, BLACK, "Seleccione plaza");
-                lcd_puts_x2(28, 32, BLACK, "Plaza ");
                 drawParkingGrid();
                 state = SELECT_PLACE;
             }
@@ -693,8 +692,8 @@ void showTariffScreen(uint8 placeNum, uint16 credit)
 
 
     // Informaci�n de plaza
-      //lcd_puts_x2(114, 142, BLACK, "Plaza ");
-      //lcd_putint_x2(202, 142, BLACK, placeNum);
+      lcd_puts_x2(114, 142, BLACK, "Plaza ");
+      lcd_putint_x2(202, 142, BLACK, placeNum);
 
 
       //Credito
