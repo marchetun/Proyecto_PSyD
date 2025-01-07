@@ -189,7 +189,6 @@ void mainTask(void)
                 if (!parking[selectedPlace - 1].occupied) {
                     showTariffScreen(selectedPlace, credit);
                     state = SHOW_TARIFF;
-                    ticks = 50;
                     ticks = 500;
                 }
                 else {
