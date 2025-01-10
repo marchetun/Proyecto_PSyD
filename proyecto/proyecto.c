@@ -1,5 +1,4 @@
-﻿
-#include <s3c44b0x.h>
+﻿#include <s3c44b0x.h>
 #include <s3cev40.h>
 #include <common_types.h>
 #include <system.h>
@@ -27,18 +26,18 @@
 
 typedef struct
 {
-    rtc_time_t startTime;   // Hora en la que se ocup� la plaza
-    rtc_time_t endTime;     // Hora en la que expir� la plaza
-    boolean occupied;   // Indica si la plaza est� ocupada
+    rtc_time_t startTime;   // Hora en la que se ocupo la plaza
+    rtc_time_t endTime;     // Hora en la que expira la plaza
+    boolean occupied;   // Indica si la plaza esta ocupada
 } plaza_t;
 
 typedef plaza_t parking_t[MAXPLACES];
 
-// Declaro esta estructura para a�adir estados restantes a la main_task()
+// Declaro esta estructura para anyadir estados restantes a la main_task()
 typedef enum
 {
     WELCOME_SCREEN,     // Estado inicial, muestra pantalla de bienvenida (nuevo demo_waiting)
-    SELECT_PLACE,       // Estado de selecci�n de plaza
+    SELECT_PLACE,       // Estado de seleccion de plaza
     SHOW_TARIFF,        // Estado que muestra la tarifa
     PROCESS_PAYMENT,    // Estado que procesa el pago
     PRINT_TICKET       // Estado que imprime el ticket
@@ -50,7 +49,7 @@ typedef enum
 
 void setup(void);
 
-uint8 checkSelectedPlace(uint16 x, uint16 y); //Devuelve el �ndice de la plaza seleccionada seg�n coordenadas.
+uint8 checkSelectedPlace(uint16 x, uint16 y); //Devuelve el indice de la plaza seleccionada segun coordenadas.
 
 void drawParkingGrid(void);
 void plotWelcomeScreen(void);
@@ -160,7 +159,7 @@ void mainTask(void)
             lcd_clear();                               /* Borra pantalla */
 
             //Preparo cambio de estado a SELECT_PLACE
-            lcd_puts_x2(24, 24, BLACK, "Seleccione plaza");
+            lcd_puts_x2(24, 40, BLACK, "Seleccione plaza");
             drawParkingGrid();
 
             state = SELECT_PLACE;                  /* Salta al estado demo_acceptCoins ... */
@@ -173,7 +172,7 @@ void mainTask(void)
             coinsMoverMsg.flag = TRUE;
         }
         break;
-    case SELECT_PLACE:                   			/* Estado en donde rechaza monedas y espera la selecci�n de la plaza */
+    case SELECT_PLACE:                   			/* Estado en donde rechaza monedas y espera la seleccion de la plaza */
         if (!(--ticks))                           /* Decrementa ticks y chequea si ha permanecido en este estado el tiempo maximo */
         {
             plotWelcomeScreen();                       /* Visualiza pantalla inicial */
@@ -183,13 +182,12 @@ void mainTask(void)
         {
             tsPressedMsg.flag = FALSE;                /* Marca el mensaje como leido */
 
-            //Devuelve en n� de plaza pulsado seg�n las coordenadas
+            //Devuelve en n de plaza pulsado segun las coordenadas
             selectedPlace = checkSelectedPlace(tsPressedMsg.x, tsPressedMsg.y);
             if (selectedPlace != 0) {
                 if (!parking[selectedPlace - 1].occupied) {
                     showTariffScreen(selectedPlace, credit);
                     state = SHOW_TARIFF;
-                    ticks = 50;
                     ticks = 500;
                 }
                 else {
@@ -199,7 +197,7 @@ void mainTask(void)
                 }
             }
         }
-        // Seguimos rechazando monedas durante la selecci�n de plaza
+        // Seguimos rechazando monedas durante la seleccion de plaza
         if (coinAcceptorMsg.flag) {
             coinAcceptorMsg.flag = FALSE;
             coinsMoverMsg.accept = FALSE;
@@ -228,14 +226,14 @@ void mainTask(void)
             coinAcceptorMsg.flag = FALSE;	/* Marca el mensaje como leido */
 
 
-            // Verificamos que no nos pasemos del m�ximo (240 c�ntimos)
+            // Verificamos que no nos pasemos del maximo (240 centimos)
             if (credit + coinAcceptorMsg.cents <= 240)
             {
                 coinsMoverMsg.accept = TRUE;//acepta monedas
                 coinsMoverMsg.flag = TRUE;//levanta flag
                 credit += coinAcceptorMsg.cents;
                 coinAcceptorMsg.cents = 0;
-                // Actualizar toda la pantalla de tarifa con el nuevo cr�dito
+                // Actualizar toda la pantalla de tarifa con el nuevo credito
                 showTariffScreen(selectedPlace, credit);
 
                 ticks = 500;   /* Restaura el tiempo maximo sin actividad que permanece en este estado */
@@ -244,23 +242,21 @@ void mainTask(void)
             {
                 coinsMoverMsg.accept = FALSE;// no acepta monedas
                 coinsMoverMsg.flag = TRUE;//levanta flag
-                // Si nos pasamos del m�ximo, devolvemos todas las monedas
+                // Si nos pasamos del maximo, devolvemos todas las monedas
                 coinsMoverMsg.accept = FALSE;
                 coinsMoverMsg.flag = TRUE;
                 credit = 0;
                 coinAcceptorMsg.cents = 0;
-                ticks = 500;  //Restauro ticks se SELECT_PLACE
-                state = SELECT_PLACE;
                 lcd_clear();
                 //Preparo cambio de estado a SELECT_PLACE
                 lcd_puts_x2(48, 54, BLACK, "Seleccione plaza");
-                lcd_puts_x2(28, 32, BLACK, "Plaza ");
                 drawParkingGrid();
+                ticks = 500;  //Restauro ticks se SELECT_PLACE
                 state = SELECT_PLACE;
             }
         }
 
-        // Si se pulsa la pantalla, verificamos el cr�dito
+        // Si se pulsa la pantalla, verificamos el credito
         if (tsPressedMsg.flag)
         {
             tsPressedMsg.flag = FALSE;
@@ -268,7 +264,7 @@ void mainTask(void)
         }
         break;
     case PROCESS_PAYMENT: // Estado donde se valora el credito introducido una vez se pulsa la pantalla
-        if (credit < 20) // Cr�dito insuficiente
+        if (credit < 20) // Credito insuficiente
         {
             lcd_clear();
             lcd_puts(24, 48, BLACK, "Saldo insuficiente");
@@ -279,7 +275,7 @@ void mainTask(void)
             ticks = 50;
             ticks = 500;
         }
-        else // Cr�dito v�lido, procesamos el pago
+        else // Credito valido, procesamos el pago
         {
             lcd_clear();
             lcd_puts(24, 48, BLACK, "Procesando pago...");
@@ -290,7 +286,7 @@ void mainTask(void)
             // Obtenemos la hora actual, aunque la estamos obteniendo cada segundo de reloj
             rtc_gettime(&actual_time);
 
-            // Actualizamos la informaci�n de la plaza
+            // Actualizamos la informacion de la plaza
             parking[selectedPlace - 1].occupied = TRUE;
             parking[selectedPlace - 1].startTime = actual_time;  // Tiempo inicial en minutos
 
@@ -301,7 +297,7 @@ void mainTask(void)
             apply_credits(&parking[selectedPlace - 1].endTime, credit);
 
 
-            // Activamos la impresi�n del ticket
+            // Activamos la impresion del ticket
             printTicketFlag = TRUE;
             state = PRINT_TICKET;
 
@@ -310,7 +306,7 @@ void mainTask(void)
         break;
     case PRINT_TICKET:
 
-        // Esperamos a que se complete la impresi�n
+        // Esperamos a que se complete la impresion
         if (!printTicketFlag)
         {
             plotWelcomeScreen();
@@ -329,24 +325,24 @@ void ticketPrinterTask(void)//Revisado
 {
     if (printTicketFlag) {
         printTicketFlag = FALSE;//bajamos flag
-        // Imprimimos una l�nea de guiones como separador
+        // Imprimimos una linea de guiones como separador
         uart0_puts("--------------------------------\n");
 
-        // Primera l�nea: n�mero de plaza
+        // Primera linea: numero de plaza
         uart0_puts("Plaza ");
         uart0_putint(selectedPlace);
         uart0_puts("\n");
 
-        // Segunda l�nea: "Fin de estacionamiento:"
+        // Segunda linea: "Fin de estacionamiento:"
         uart0_puts("Fin de estacionamiento:\n");
 
-        // Tercera l�nea: Fecha de fin, por ahora he dejado los segundos tambien ya que al comparar
-        // los estoy teniendo en cuenta, habr�a que cambiarlo ya que en la demo no tiene en cuenta los segundos
+        // Tercera linea: Fecha de fin, por ahora he dejado los segundos tambien ya que al comparar
+        // los estoy teniendo en cuenta, habria que cambiarlo ya que en la demo no tiene en cuenta los segundos
         uart0_puts(calculate_weekday(parking[selectedPlace - 1].endTime.wday) + ',' + parking[selectedPlace - 1].endTime.mday + '/' + parking[selectedPlace - 1].endTime.mon + '/' + parking[selectedPlace - 1].endTime.year + ' ' +
             parking[selectedPlace - 1].endTime.hour + ':' + parking[selectedPlace - 1].endTime.min + ':' + parking[selectedPlace - 1].endTime.sec);
         uart0_puts("\n");
 
-        // L�nea separadora final
+        // Linea separadora final
         uart0_puts("--------------------------------\n");
 
     }
@@ -376,7 +372,7 @@ void clockTask(void)//Revisado
     lcd_putchar(216, 8, BLACK, ':');
     lcd_putint(224, 8, BLACK, actual_time.sec);
 
-    // Liberar plazas de parking cuya hora de finalizaci�n haya pasado
+    // Liberar plazas de parking cuya hora de finalizacion haya pasado
 
     for (i = 0; i < MAXPLACES; i++) {
         if (parking[i].occupied) {
@@ -515,7 +511,7 @@ void coinsMoverTask(void)// Revisado
 
 void setup(void)//Revisado
 {
-    // Inicializaci�n de variables o configuraciones necesarias
+    // Inicializacion de variables o configuraciones necesarias
     int i;
     for (i = 0; i < MAXPLACES; i++) {
         parking[i].occupied = FALSE;
@@ -588,10 +584,10 @@ void plotWelcomeScreen(void) {//Revisado, alomejor cuadrar posiciones de cadenas
     lcd_puts_x2(24, 40, BLACK, "Pulse la pantalla");
     lcd_puts_x2(72, 80, BLACK, "para comenzar");
 
-    // Dibujamos el rect�ngulo para el horario
+    // Dibujamos el rectangulo para el horario
     lcd_draw_box(1, 128, 319, 218, BLACK, 1);
 
-    // T�tulo del horario centrado
+    // Titulo del horario centrado
     lcd_puts(70, 120, BLACK, "HORARIO DE FUNCIONAMIENTO");
 
     // Horarios
@@ -601,7 +597,7 @@ void plotWelcomeScreen(void) {//Revisado, alomejor cuadrar posiciones de cadenas
     lcd_puts(24, 200, BLACK, "mie: 09:00-21:00");
 }
 
-//Funci�n que pinta la selecci�n de plazas displonibles.
+//Funcion que pinta la seleccion de plazas displonibles.
 void drawParkingGrid(void) {//Revisado, alomejor cuadrar posiciones de cadenas en el lcd
     uint16 x = 32, y = 136, i;
     /* Pinta cuadricula */
@@ -640,35 +636,34 @@ uint8 checkSelectedPlace(uint16 x, uint16 y) {//Revisado
     int col = x / 80;
     int row = (y - 119) / 60;
 
-    // Verificamos que el toque est� dentro de los l�mites
-    if (col >= 0 && col < 4 && row >= 0 && row < 2)
-    {
+    // Verificamos que el toque esta dentro de los limites
+    if (col >= 0 && col < 4 && row >= 0 && row < 2) {
         return (row * 4) + col + 1;
     }
 
-    return 0; // Retorna 0 si no se seleccion� ninguna plaza v�lida
+    return 0; // Retorna 0 si no se selecciona ninguna plaza valida
 }
 
 void showPlaceOccupiedMessage(uint8 placeNum) {
     lcd_clear();
 
-    // Primera l�nea - Plaza X ocupada (en grande)
-    lcd_puts_x2(70, 60, BLACK, "Plaza ");
+    // Primera linea - Plaza X ocupada (en grande)
+    lcd_puts_x2(60, 60, BLACK, "Plaza ");
     lcd_putint_x2(140, 60, BLACK, placeNum);
     lcd_puts_x2(160, 60, BLACK, " ocupada");
 
-    // Segunda l�nea - Fin de estacionamiento
-    lcd_puts(50, 120, BLACK, "Fin: ");
-    lcd_puts(80, 120, BLACK, calculate_weekday(parking[placeNum - 1].endTime.wday));
-    lcd_putchar(110, 120, BLACK, ',');
-    lcd_putint(120, 120, BLACK, parking[placeNum - 1].endTime.mday);
-    lcd_putchar(135, 120, BLACK, '/');
-    lcd_putint(145, 120, BLACK, parking[placeNum - 1].endTime.mon);
-    lcd_putchar(160, 120, BLACK, '/');
-    lcd_putint(170, 120, BLACK, parking[placeNum - 1].endTime.year);
-    lcd_putchar(185, 120, BLACK, ' ');
-    lcd_putint(195, 120, BLACK, parking[placeNum - 1].endTime.hour);
-    lcd_putchar(210, 120, BLACK, ':');
+    // Segunda linea - Fin de estacionamiento
+    lcd_puts(60, 120, BLACK, "Fin :");
+    lcd_puts(92, 120, BLACK, calculate_weekday(parking[placeNum - 1].endTime.wday));
+    lcd_putchar(122, 120, BLACK, ',');
+    lcd_putint(130, 120, BLACK, parking[placeNum - 1].endTime.mday);
+    lcd_putchar(144, 120, BLACK, '/');
+    lcd_putint(152, 120, BLACK, parking[placeNum - 1].endTime.mon);
+    lcd_putchar(168, 120, BLACK, '/');
+    lcd_putint(176, 120, BLACK, parking[placeNum - 1].endTime.year);
+
+    lcd_putint(196, 120, BLACK, parking[placeNum - 1].endTime.hour);
+    lcd_putchar(212, 120, BLACK, ':');
     lcd_putint(220, 120, BLACK, parking[placeNum - 1].endTime.min);
 
     sw_delay_ms(2000);
@@ -680,36 +675,50 @@ void showTariffScreen(uint8 placeNum, uint16 credit)
 {
     lcd_clear();
 
-    // Dibujamos el rect�ngulo para la tarifa
+    // Dibujamos el rectangulo para la tarifa
     lcd_draw_box(1, 40, 319, 130, BLACK, 1);
 
-    // T�tulo centrado
+    // Titulo centrado
     lcd_puts(128, 32, BLACK, "TARIFA");
 
-    // Informaci�n de tarifa dentro del rect�ngulo
+    // Informacion de tarifa dentro del rectangulo
     lcd_puts(32, 56, BLACK, "Precio por minuto: 0,01 euros");
     lcd_puts(32, 80, BLACK, "Estancia minima:  20 minutos");
     lcd_puts(32, 104, BLACK, "Estancia maxima: 240 minutos");
 
 
 
-    // Informaci�n de plaza
-      //lcd_puts_x2(114, 142, BLACK, "Plaza ");
-      //lcd_putint_x2(202, 142, BLACK, placeNum);
+    // Informacion de plaza
+    lcd_puts_x2(114, 142, BLACK, "Plaza ");
+    lcd_putint_x2(202, 142, BLACK, placeNum);
 
 
-      //Credito
+    //Credito
     lcd_puts(100, 178, BLACK, "Credito: ");
     lcd_putint(166, 178, BLACK, credit / 100);
     lcd_putchar(174, 178, BLACK, ',');
-    lcd_putint(190, 178, BLACK, credit % 100);
-    lcd_puts(202, 178, BLACK, "   euros");
+    lcd_putint(184, 178, BLACK, credit % 100);
+    lcd_puts(204, 178, BLACK, "euros");
 
     //Fecha Fin
-    lcd_puts(92, 194, BLACK, " Fin: ");
+    rtc_time_t coins_time = actual_time;
+
+    apply_credits(&coins_time, credit);
+
+    lcd_puts(60, 194, BLACK, "Fin :");
+    lcd_puts(98, 194, BLACK, calculate_weekday(coins_time.wday));
+    lcd_putchar(116, 194, BLACK, ',');
+    lcd_putint(128, 194, BLACK, coins_time.mday);
+    lcd_putchar(144, 194, BLACK, '/');
+    lcd_putint(152, 194, BLACK, coins_time.mon);
+    lcd_putchar(168, 194, BLACK, '/');
+    lcd_putint(176, 194, BLACK, coins_time.year);
+    lcd_putint(192, 194, BLACK, coins_time.hour);
+    lcd_putchar(204, 194, BLACK, ':');
+    lcd_putint(212, 194, BLACK, coins_time.min);
 
     // Mensajes finales
-      //lcd_puts(106, 216, BLACK, "Inserte monedas");
-        //lcd_puts(48, 228, BLACK, "Pulse la pantalla para aceptar");
+    lcd_puts(106, 206, BLACK, "Inserte monedas");
+    lcd_puts(48, 220, BLACK, "Pulse la pantalla para aceptar");
 
 }

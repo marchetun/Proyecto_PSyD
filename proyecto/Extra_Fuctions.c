@@ -15,9 +15,12 @@ char* calculate_weekday(uint8 week_day) {
     case 4: return "mie"; // Miércoles
     case 5: return "jue"; // Jueves
     case 6: return "vie"; // Viernes
-    case 7: return "sab"; // Sábado
+    case 7: return "sab"; // Sábadoç
+
+    default: return NULL;
     }
 }
+
 boolean dates_comparator(rtc_time_t actual_time, rtc_time_t time) {
     // Compara cada campo de mayor a menor granularidad
     if (actual_time.year > time.year) return TRUE;
@@ -85,16 +88,16 @@ void adjust_rtc_time(rtc_time_t* time) {
 }
 
 
-void apply_credits(rtc_time_t* time, uint16 credits) { //He cambiado uin8 por uint16 credito
-        // Si el total supera el rango representable, ajustar primero los créditos
+void apply_credits(rtc_time_t* time, uint16 credits) {
+    if (time == NULL) {
+        return;
+    }
+
+    // Convertir créditos a minutos totales
     uint16 total_minutes = time->min + credits;
-    if (total_minutes > 255) {
-        uint16 extra_hours = total_minutes / 60; // Horas completas adicionales
-        time->hour += extra_hours;
-        time->min = total_minutes % 60; // Restante de minutos
-    }
-    else {
-        time->min = total_minutes;
-    }
-    adjust_rtc_time(time); // Ajustar los campos de la estructura
+    time->hour += total_minutes / 60;
+    time->min = total_minutes % 60;
+
+    // Ajustar todos los campos
+    adjust_rtc_time(time);
 }
