@@ -159,7 +159,6 @@ void mainTask(void)
             lcd_clear();                               /* Borra pantalla */
 
             //Preparo cambio de estado a SELECT_PLACE
-            lcd_puts_x2(24, 40, BLACK, "Seleccione plaza");
             drawParkingGrid();
 
             state = SELECT_PLACE;                  /* Salta al estado demo_acceptCoins ... */
@@ -249,7 +248,6 @@ void mainTask(void)
                 coinAcceptorMsg.cents = 0;
                 lcd_clear();
                 //Preparo cambio de estado a SELECT_PLACE
-                lcd_puts_x2(48, 54, BLACK, "Seleccione plaza");
                 drawParkingGrid();
                 ticks = 500;  //Restauro ticks se SELECT_PLACE
                 state = SELECT_PLACE;
@@ -291,7 +289,6 @@ void mainTask(void)
             parking[selectedPlace - 1].startTime = actual_time;  // Tiempo inicial en minutos
 
             //Calculo el timpo final
-            rtc_time_t endTime = parking[selectedPlace - 1].startTime;
             parking[selectedPlace - 1].endTime = parking[selectedPlace - 1].startTime;
             // Aplico los creditos
             apply_credits(&parking[selectedPlace - 1].endTime, credit);
@@ -329,7 +326,7 @@ void ticketPrinterTask(void)//Revisado
         uart0_puts("--------------------------------\n");
 
         // Primera linea: numero de plaza
-        uart0_puts("Plaza ");
+        uart0_puts("Plaza  ");
         uart0_putint(selectedPlace);
         uart0_puts("\n");
 
@@ -338,8 +335,27 @@ void ticketPrinterTask(void)//Revisado
 
         // Tercera linea: Fecha de fin, por ahora he dejado los segundos tambien ya que al comparar
         // los estoy teniendo en cuenta, habria que cambiarlo ya que en la demo no tiene en cuenta los segundos
-        uart0_puts(calculate_weekday(parking[selectedPlace - 1].endTime.wday) + ',' + parking[selectedPlace - 1].endTime.mday + '/' + parking[selectedPlace - 1].endTime.mon + '/' + parking[selectedPlace - 1].endTime.year + ' ' +
-            parking[selectedPlace - 1].endTime.hour + ':' + parking[selectedPlace - 1].endTime.min + ':' + parking[selectedPlace - 1].endTime.sec);
+      //  uart0_puts(calculate_weekday(parking[selectedPlace - 1].endTime.wday) + ',' + parking[selectedPlace - 1].endTime.mday + '/' + parking[selectedPlace - 1].endTime.mon + '/' + parking[selectedPlace - 1].endTime.year + ' ' +
+      //      parking[selectedPlace - 1].endTime.hour + ':' + parking[selectedPlace - 1].endTime.min + ':' + parking[selectedPlace - 1].endTime.sec);
+
+        uart0_puts(calculate_weekday(parking[selectedPlace - 1].endTime.wday));
+        uart0_putchar(',');
+        uart0_putchar(' ');
+        if (parking[selectedPlace - 1].endTime.mday < 10) uart0_putint(0);
+        uart0_putint(parking[selectedPlace - 1].endTime.mday);
+        uart0_putchar('/');
+        if (parking[selectedPlace - 1].endTime.mon < 10) uart0_putint(0);
+        uart0_putint(parking[selectedPlace - 1].endTime.mon);
+        uart0_putchar('/');
+        if (parking[selectedPlace - 1].endTime.year < 10) uart0_putint(0);
+        uart0_putint(parking[selectedPlace - 1].endTime.year);
+        uart0_putchar(' ');
+        if (parking[selectedPlace - 1].endTime.hour < 10) uart0_putint(0);
+        uart0_putint(parking[selectedPlace - 1].endTime.hour);
+        uart0_putchar(':');
+        if (parking[selectedPlace - 1].endTime.min < 10) uart0_putint(0);
+        uart0_putint(parking[selectedPlace - 1].endTime.min);
+
         uart0_puts("\n");
 
         // Linea separadora final
@@ -360,17 +376,17 @@ void clockTask(void)//Revisado
     // Mostramos la hora
     lcd_puts(60, 8, BLACK, calculate_weekday(actual_time.wday));
     lcd_putchar(84, 8, BLACK, ',');
-    lcd_putint(92, 8, BLACK, actual_time.mday);
+    lcd_putint_time(92, 8, BLACK, actual_time.mday);
     lcd_putchar(108, 8, BLACK, '/');
-    lcd_putint(116, 8, BLACK, actual_time.mon);
+    lcd_putint_time(116, 8, BLACK, actual_time.mon);
     lcd_putchar(132, 8, BLACK, '/');
-    lcd_putint(140, 8, BLACK, actual_time.year);
+    lcd_putint_time(140, 8, BLACK, actual_time.year);
 
-    lcd_putint(176, 8, BLACK, actual_time.hour);
+    lcd_putint_time(176, 8, BLACK, actual_time.hour);
     lcd_putchar(192, 8, BLACK, ':');
-    lcd_putint(200, 8, BLACK, actual_time.min);
+    lcd_putint_time(200, 8, BLACK, actual_time.min);
     lcd_putchar(216, 8, BLACK, ':');
-    lcd_putint(224, 8, BLACK, actual_time.sec);
+    lcd_putint_time(224, 8, BLACK, actual_time.sec);
 
     // Liberar plazas de parking cuya hora de finalizacion haya pasado
 
@@ -600,6 +616,8 @@ void plotWelcomeScreen(void) {//Revisado, alomejor cuadrar posiciones de cadenas
 //Funcion que pinta la seleccion de plazas displonibles.
 void drawParkingGrid(void) {//Revisado, alomejor cuadrar posiciones de cadenas en el lcd
     uint16 x = 32, y = 136, i;
+
+    lcd_puts_x2(24, 40, BLACK, "Seleccione plaza");
     /* Pinta cuadricula */
     lcd_draw_box(0, 119, 79, 179, BLACK, 1);
     lcd_draw_box(79, 119, 159, 179, BLACK, 1);
@@ -653,18 +671,18 @@ void showPlaceOccupiedMessage(uint8 placeNum) {
     lcd_puts_x2(160, 60, BLACK, " ocupada");
 
     // Segunda linea - Fin de estacionamiento
-    lcd_puts(60, 120, BLACK, "Fin :");
+    lcd_puts(60, 120, BLACK, "Fin:");
     lcd_puts(92, 120, BLACK, calculate_weekday(parking[placeNum - 1].endTime.wday));
-    lcd_putchar(122, 120, BLACK, ',');
-    lcd_putint(130, 120, BLACK, parking[placeNum - 1].endTime.mday);
-    lcd_putchar(144, 120, BLACK, '/');
-    lcd_putint(152, 120, BLACK, parking[placeNum - 1].endTime.mon);
-    lcd_putchar(168, 120, BLACK, '/');
-    lcd_putint(176, 120, BLACK, parking[placeNum - 1].endTime.year);
+    lcd_putchar(116, 120, BLACK, ',');
+    lcd_putint_time(126, 120, BLACK, parking[placeNum - 1].endTime.mday);
+    lcd_putchar(140, 120, BLACK, '/');
+    lcd_putint_time(148, 120, BLACK, parking[placeNum - 1].endTime.mon);
+    lcd_putchar(164, 120, BLACK, '/');
+    lcd_putint_time(172, 120, BLACK, parking[placeNum - 1].endTime.year);
 
-    lcd_putint(196, 120, BLACK, parking[placeNum - 1].endTime.hour);
+    lcd_putint_time(196, 120, BLACK, parking[placeNum - 1].endTime.hour);
     lcd_putchar(212, 120, BLACK, ':');
-    lcd_putint(220, 120, BLACK, parking[placeNum - 1].endTime.min);
+    lcd_putint_time(220, 120, BLACK, parking[placeNum - 1].endTime.min);
 
     sw_delay_ms(2000);
     lcd_clear();
@@ -705,17 +723,17 @@ void showTariffScreen(uint8 placeNum, uint16 credit)
 
     apply_credits(&coins_time, credit);
 
-    lcd_puts(60, 194, BLACK, "Fin :");
+    lcd_puts(60, 194, BLACK, "Fin:");
     lcd_puts(98, 194, BLACK, calculate_weekday(coins_time.wday));
-    lcd_putchar(116, 194, BLACK, ',');
-    lcd_putint(128, 194, BLACK, coins_time.mday);
+    lcd_putchar(120, 194, BLACK, ',');
+    lcd_putint_time(128, 194, BLACK, coins_time.mday);
     lcd_putchar(144, 194, BLACK, '/');
-    lcd_putint(152, 194, BLACK, coins_time.mon);
+    lcd_putint_time(152, 194, BLACK, coins_time.mon);
     lcd_putchar(168, 194, BLACK, '/');
-    lcd_putint(176, 194, BLACK, coins_time.year);
-    lcd_putint(192, 194, BLACK, coins_time.hour);
-    lcd_putchar(204, 194, BLACK, ':');
-    lcd_putint(212, 194, BLACK, coins_time.min);
+    lcd_putint_time(176, 194, BLACK, coins_time.year);
+    lcd_putint_time(196, 194, BLACK, coins_time.hour);
+    lcd_putchar(210, 194, BLACK, ':');
+    lcd_putint_time(218, 194, BLACK, coins_time.min);
 
     // Mensajes finales
     lcd_puts(106, 206, BLACK, "Inserte monedas");

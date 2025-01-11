@@ -25,4 +25,7 @@ void adjust_rtc_time(rtc_time_t* time);
 // Función principal para aplicar los créditos
 void apply_credits(rtc_time_t* time, uint16 credits);
 
+//Funcion para añadir un 0 a la izquierda en fechas y horas
+void lcd_putint_time(uint16 x, uint16 y, uint16 color, uint8 num);
+
 #endif /* EXTRA_FUCTIONS_H_ */

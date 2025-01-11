@@ -15,7 +15,7 @@ char* calculate_weekday(uint8 week_day) {
     case 4: return "mie"; // Miércoles
     case 5: return "jue"; // Jueves
     case 6: return "vie"; // Viernes
-    case 7: return "sab"; // Sábadoç
+    case 7: return "sab"; // Sábado
 
     default: return NULL;
     }
@@ -43,6 +43,7 @@ boolean dates_comparator(rtc_time_t actual_time, rtc_time_t time) {
 
     return FALSE;
 }
+
 void reset_rtc_time(rtc_time_t* time) {
     time->sec = 0;
     time->min = 0;
@@ -52,6 +53,7 @@ void reset_rtc_time(rtc_time_t* time) {
     time->mon = 0;
     time->year = 0;
 }
+
 // Función para ajustar los límites de cada campo
 void adjust_rtc_time(rtc_time_t* time) {
     static const uint8 days_in_month[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
@@ -100,4 +102,14 @@ void apply_credits(rtc_time_t* time, uint16 credits) {
 
     // Ajustar todos los campos
     adjust_rtc_time(time);
+}
+
+void lcd_putint_time(uint16 x, uint16 y, uint16 color, uint8 num) {
+    if (num < 10) {
+        lcd_putchar(x, y, color, '0');
+        lcd_putint(x + 10, y, color, num);
+    }
+    else {
+        lcd_putint(x, y, color, num);
+    }
 }
