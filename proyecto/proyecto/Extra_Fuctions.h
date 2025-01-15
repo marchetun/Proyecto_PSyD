@@ -9,7 +9,7 @@
 #define EXTRA_FUCTIONS_H_
 
 #include <rtc.h>//rtc incluye common_types
-
+#include <lcd.h>
 //Pasa el dia de la semana a string
 char* calculate_weekday(uint8 week_day);
 
@@ -24,5 +24,8 @@ void adjust_rtc_time(rtc_time_t *time);
 
 // Función principal para aplicar los créditos
 void apply_credits(rtc_time_t *time, uint8 credits);
+
+//Funcion para mostar la hora
+void show_date(int x, int y, rtc_time_t actual_time);
 
 #endif /* EXTRA_FUCTIONS_H_ */

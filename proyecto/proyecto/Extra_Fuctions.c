@@ -97,3 +97,19 @@ void apply_credits(rtc_time_t *time, uint8 credits) {
 	    }
     adjust_rtc_time(time); // Ajustar los campos de la estructura
 }
+
+void show_date(int x, int y, rtc_time_t actual_time){
+	lcd_puts(x, y, BLACK, calculate_weekday(actual_time.wday));
+	    lcd_putchar(x+24, y, BLACK, ',');
+	    lcd_putint(x+32, y, BLACK, actual_time.mday);
+	    lcd_putchar(x+48, y, BLACK, '/');
+	    lcd_putint(x+56, y, BLACK, actual_time.mon);
+	    lcd_putchar(x+72, y, BLACK, '/');
+	    lcd_putint(x+80, y, BLACK, actual_time.year);
+
+	    lcd_putint(x+116, y, BLACK, actual_time.hour);
+	    lcd_putchar(x+132, y, BLACK, ':');
+	    lcd_putint(x+140, y, BLACK, actual_time.min);
+	    lcd_putchar(x+156, y, BLACK, ':');
+	    lcd_putint(x+164, y, BLACK, actual_time.sec);
+}
