@@ -12,10 +12,10 @@ char* calculate_weekday(uint8 week_day) {
 	        case 1: return "dom"; // Domingo
 	        case 2: return "lun"; // Lunes
 	        case 3: return "mar"; // Martes
-	        case 4: return "mie"; // Miércoles
+	        case 4: return "mie"; // Miercoles
 	        case 5: return "jue"; // Jueves
 	        case 6: return "vie"; // Viernes
-	        case 7: return "sab"; // Sábado
+	        case 7: return "sab"; // Sabado
     }
 }
 boolean dates_comparator(rtc_time_t actual_time, rtc_time_t time){
@@ -49,7 +49,7 @@ void reset_rtc_time(rtc_time_t *time) {
     time->mon = 0;
     time->year = 0;
 }
-// Función para ajustar los límites de cada campo
+// Funcion para ajustar los limites de cada campo
 void adjust_rtc_time(rtc_time_t *time) {
     static const uint8 days_in_month[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
@@ -66,10 +66,10 @@ void adjust_rtc_time(rtc_time_t *time) {
         time->hour %= 24;
     }
 
-    // Ajustar días y meses
+    // Ajustar dias y meses
     uint8 max_days = days_in_month[time->mon - 1];
     if (time->mon == 2 && ((time->year % 4 == 0 && time->year % 100 != 0) || time->year % 400 == 0)) {
-        max_days = 29; // Año bisiesto
+        max_days = 29; // Ano bisiesto
     }
     if (time->mday > max_days) {
         time->mon += time->mday / max_days;
@@ -80,36 +80,47 @@ void adjust_rtc_time(rtc_time_t *time) {
         time->mon = (time->mon - 1) % 12 + 1;
     }
 
-    // Ajustar día de la semana
+    // Ajustar dia de la semana
     time->wday = ((time->wday - 1 + time->mday) % 7) + 1;
 }
 
 
-void apply_credits(rtc_time_t *time, uint8 credits) {
-	    // Si el total supera el rango representable, ajustar primero los créditos
-	    uint16 total_minutes = time->min + credits;
-	    if (total_minutes > 255) {
-	        uint16 extra_hours = total_minutes / 60; // Horas completas adicionales
-	        time->hour += extra_hours;
-	        time->min = total_minutes % 60; // Restante de minutos
-	    } else {
-	        time->min = total_minutes;
-	    }
-    adjust_rtc_time(time); // Ajustar los campos de la estructura
+void apply_credits(rtc_time_t* time, uint16 credits) {
+    if (time == NULL) {
+        return;
+    }
+
+    // Convertir creditos a minutos totales
+    uint16 total_minutes = time->min + credits;
+    time->hour += total_minutes / 60;
+    time->min = total_minutes % 60;
+
+    // Ajustar todos los campos
+    adjust_rtc_time(time);
 }
 
 void show_date(int x, int y, rtc_time_t actual_time){
 	lcd_puts(x, y, BLACK, calculate_weekday(actual_time.wday));
-	    lcd_putchar(x+24, y, BLACK, ',');
-	    lcd_putint(x+32, y, BLACK, actual_time.mday);
-	    lcd_putchar(x+48, y, BLACK, '/');
-	    lcd_putint(x+56, y, BLACK, actual_time.mon);
-	    lcd_putchar(x+72, y, BLACK, '/');
-	    lcd_putint(x+80, y, BLACK, actual_time.year);
+	lcd_putchar(x+24, y, BLACK, ',');
+    lcd_putint_time(x+32, y, BLACK, actual_time.mday);
+	lcd_putchar(x+48, y, BLACK, '/');
+    lcd_putint_time(x+56, y, BLACK, actual_time.mon);
+	lcd_putchar(x+72, y, BLACK, '/');
+    lcd_putint_time(x+80, y, BLACK, actual_time.year);
 
-	    lcd_putint(x+116, y, BLACK, actual_time.hour);
-	    lcd_putchar(x+132, y, BLACK, ':');
-	    lcd_putint(x+140, y, BLACK, actual_time.min);
-	    lcd_putchar(x+156, y, BLACK, ':');
-	    lcd_putint(x+164, y, BLACK, actual_time.sec);
+    lcd_putint_time(x+116, y, BLACK, actual_time.hour);
+	lcd_putchar(x+132, y, BLACK, ':');
+    lcd_putint_time(x+140, y, BLACK, actual_time.min);
+	lcd_putchar(x+156, y, BLACK, ':');
+    lcd_putint_time(x+164, y, BLACK, actual_time.sec);
+}
+
+void lcd_putint_time(uint16 x, uint16 y, uint16 color, uint8 num) {
+    if (num < 10) {
+        lcd_putchar(x, y, color, '0');
+        lcd_putint(x + 10, y, color, num);
+    }
+    else {
+        lcd_putint(x, y, color, num);
+    }
 }
