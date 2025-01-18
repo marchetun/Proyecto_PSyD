@@ -75,6 +75,8 @@ parking_t parking;
 
 rtc_time_t actual_time;
 
+boolean free;//para saber si es dia gratuito
+
 volatile uint8 selectedPlace;
 
 struct mbox1 {                /* mailbox donde la coinsAcceptorTask indica a mainTask la moneda introducida */
@@ -143,12 +145,17 @@ void mainTask(void)
     static uint16 credit;
     static uint16 ticks;
 
+    rtc_time_t endTime_aux;//tiempo auxiliar para aplicar creditos
     if (init)
     {
         init = FALSE;
         plotWelcomeScreen();
         credit = 0;
         state = WELCOME_SCREEN;
+        free = FALSE;//para saber si el dia de la semana es gratis
+        if(actual_time.wday==1)//Si es domingo, la tarifa es gratuita, en este caso lo ponemos al inicializar pero
+        	free = TRUE;    // En una maquina real en la que el progama se ejectua durante días habría que comprobarlo en la WELCOME_SCREEN
+
     }
     else switch (state)
     {
@@ -157,8 +164,22 @@ void mainTask(void)
         {
             tsPressedMsg.flag = FALSE;                 /* Marca el mensaje como leido */
             lcd_clear();                               /* Borra pantalla */
-            state = SELECT_PLACE;                  /* Salta al estado demo_acceptCoins ... */
-            ticks = 500;                               /* ... en el que debera permanecer un maximo de 500 ticks sin no hay actividad */
+
+            if(is_on_time(&actual_time)){//si esta dentro del horario pasa a seleccionar plaza
+            	//Dibujo LCD
+            	        lcd_puts_x2(32, 40, BLACK, "Seleccione plaza");
+            	        drawParkingGrid();
+
+            	   state = SELECT_PLACE;                  /* Salta al estado demo_acceptCoins ... */
+            	            ticks = 500;                               /* ... en el que debera permanecer un maximo de 500 ticks sin no hay actividad */
+            }else
+            {
+            	lcd_puts(84, 112, BLACK, "Fuera de Servicio");//Mostramos mensaje de fuera de servicio
+            	sw_delay_ms(2000);//delay para que pueda leer
+            	lcd_clear();//limpiamos
+            	plotWelcomeScreen();//seguimos en welcome_screen y mostramos su pantalla
+            }
+
         }
         if (coinAcceptorMsg.flag)                /* Chequea si se ha introducido una moneda (mensaje recibido de la tarea coinAcceptorTask) */
         {
@@ -171,12 +192,11 @@ void mainTask(void)
 
         if (!(--ticks))                           /* Decrementa ticks y chequea si ha permanecido en este estado el tiempo maximo */
         {
+        	lcd_clear();
             plotWelcomeScreen();                       /* Visualiza pantalla inicial */
             state = WELCOME_SCREEN;                      /* Salta al estado demo_waiting */
         }
-        //Dibujo LCD
-        lcd_puts_x2(32, 40, BLACK, "Seleccione plaza");
-        drawParkingGrid();
+
         if (tsPressedMsg.flag)                    /* Chequea si se ha pulsado la pantalla (mensaje recibido de la tarea tsPressedTask) */
         {
             tsPressedMsg.flag = FALSE;                /* Marca el mensaje como leido */
@@ -185,6 +205,7 @@ void mainTask(void)
             selectedPlace = checkSelectedPlace(tsPressedMsg.x, tsPressedMsg.y);
             if (selectedPlace != 0) {
                 if (!parking[selectedPlace - 1].occupied) {
+                	lcd_clear();
                     showTariffScreen(selectedPlace, credit);
                     state = SHOW_TARIFF;
                     ticks = 500;
@@ -207,6 +228,7 @@ void mainTask(void)
     case SHOW_TARIFF:  // Procesamos monedas introducidas
         if (!(--ticks)) // Timeout de inactividad (5 segundos)
         {
+        	lcd_clear();
             plotWelcomeScreen();
             // Devolvemos las monedas introducidas
             if (credit > 0)
@@ -217,7 +239,36 @@ void mainTask(void)
             }
             credit = 0;
             state = WELCOME_SCREEN;
+        }else{
+
+        	 // Actualizar la hora fin para que siempre cuadre con la hora actual
+        	             rtc_gettime(&endTime_aux);
+        	            // Aplico los creditos al auxiliar
+        	            apply_credits(&endTime_aux, credit);
+        	            if(!is_on_time(&endTime_aux)){//Si ha excedido el límite devuelve las monedas y vuelve al estado anterior
+        	            	 coinsMoverMsg.accept = FALSE;// no acepta monedas
+        	            	                coinsMoverMsg.flag = TRUE;//levanta flag
+        	            	                // Si nos pasamos del maximo, devolvemos todas las monedas
+        	            	                credit = 0;
+        	            	                coinAcceptorMsg.cents = 0;
+        	            	                ticks = 500;  //Restauro ticks de SELECT_PLACE
+        	            	                state = SELECT_PLACE;
+        	            	                lcd_clear();
+        	            	                                	 lcd_puts(84, 112, BLACK, " Fuera de Horario ");
+        	            	                                	 sw_delay_ms(2000);
+        	            	                                	 lcd_clear();
+        	            	                                	                //Dibujo LCD
+        	            	                                	                            	        lcd_puts_x2(32, 40, BLACK, "Seleccione plaza");
+        	            	                                	                            	        drawParkingGrid();
+        	            }else{
+        	            	// Mostramos la hora
+        	            	            show_date(100, 194, endTime_aux);
+        	            }
+
+
         }
+
+
 
         // Procesamos monedas introducidas
         if (coinAcceptorMsg.flag)
@@ -226,16 +277,20 @@ void mainTask(void)
             coinAcceptorMsg.flag = FALSE;	/* Marca el mensaje como leido */
 
 
+
             // Verificamos que no nos pasemos del maximo (240 centimos)
-            if (credit + coinAcceptorMsg.cents <= 240)
+            if (credit + coinAcceptorMsg.cents <= 240 )
             {
-                coinsMoverMsg.accept = TRUE;//acepta monedas
+               if(free)//acepta monedas, no acepta si es gratis
+            	   coinsMoverMsg.accept = FALSE;
+               else
+            	   coinsMoverMsg.accept = TRUE;
+
                 coinsMoverMsg.flag = TRUE;//levanta flag
                 credit += coinAcceptorMsg.cents;
                 coinAcceptorMsg.cents = 0;
-                // Actualizar toda la pantalla de tarifa con el nuevo credito
-                showTariffScreen(selectedPlace, credit);
 
+                showTariffScreen(selectedPlace,  credit);//mostramos pantalla de nuevo
                 ticks = 500;   /* Restaura el tiempo maximo sin actividad que permanece en este estado */
             }
             else
@@ -243,15 +298,19 @@ void mainTask(void)
                 coinsMoverMsg.accept = FALSE;// no acepta monedas
                 coinsMoverMsg.flag = TRUE;//levanta flag
                 // Si nos pasamos del maximo, devolvemos todas las monedas
-                coinsMoverMsg.accept = FALSE;
-                coinsMoverMsg.flag = TRUE;
                 credit = 0;
                 coinAcceptorMsg.cents = 0;
-                ticks = 500;  //Restauro ticks se SELECT_PLACE
+                ticks = 500;  //Restauro ticks de SELECT_PLACE
                 state = SELECT_PLACE;
+                if(!is_on_time(&endTime_aux)){
+                	 lcd_clear();
+                	 lcd_puts(84, 112, BLACK, " Fuera de Horario ");
+                	 sw_delay_ms(2000);
+                }
                 lcd_clear();
-                //Preparo cambio de estado a SELECT_PLACE
-                state = SELECT_PLACE;
+                //Dibujo LCD
+                            	        lcd_puts_x2(32, 40, BLACK, "Seleccione plaza");
+                            	        drawParkingGrid();
             }
         }
 
@@ -349,7 +408,9 @@ void ticketPrinterTask(void)//Revisado
         uart0_putchar(':');
         if (parking[selectedPlace - 1].endTime.min < 10) uart0_putint(0);
         uart0_putint(parking[selectedPlace - 1].endTime.min);
-
+        uart0_putchar(':');
+        if (parking[selectedPlace - 1].endTime.sec < 10) uart0_putint(0);
+        uart0_putint(parking[selectedPlace - 1].endTime.sec);
         uart0_puts("\n");
 
         // Linea separadora final
@@ -667,23 +728,49 @@ void showPlaceOccupiedMessage(uint8 placeNum) {
 
     sw_delay_ms(2000);
     lcd_clear();
-    drawParkingGrid();
+    //Dibujo LCD
+                	        lcd_puts_x2(32, 40, BLACK, "Seleccione plaza");
+                	        drawParkingGrid();
 }
 
 void showTariffScreen(uint8 placeNum, uint16 credit)
 {
-    lcd_clear();
-
     // Dibujamos el rectangulo para la tarifa
     lcd_draw_box(1, 40, 319, 130, BLACK, 1);
+if(free){
+	// Titulo centrado
+		    lcd_puts(128, 32, BLACK, "TARIFA GRATUITA");
 
-    // Titulo centrado
-    lcd_puts(128, 32, BLACK, "TARIFA");
+		    lcd_puts(32, 56, BLACK, "Precio por minuto: 0,00 euros");
 
-    // Informacion de tarifa dentro del rectangulo
-    lcd_puts(32, 56, BLACK, "Precio por minuto: 0,01 euros");
-    lcd_puts(32, 80, BLACK, "Estancia minima:  20 minutos");
-    lcd_puts(32, 104, BLACK, "Estancia maxima: 240 minutos");
+		    //Credito
+		    	           lcd_puts(88, 178, BLACK, "Minutos: ");
+		    	           lcd_putint(154, 178, BLACK, credit );
+
+		    	           lcd_puts(36, 210, BLACK, "Seleccione la cantidad de minutos ");
+}
+else{
+	// Titulo centrado
+	    lcd_puts(128, 32, BLACK, "TARIFA");
+	    // Informacion de tarifa dentro del rectangulo
+	        lcd_puts(32, 56, BLACK, "Precio por minuto: 0,01 euros");
+
+	        //Credito
+	           lcd_puts(88, 178, BLACK, "Credito: ");
+	           lcd_putint(154, 178, BLACK, credit / 100);
+	           lcd_putchar(162, 178, BLACK, ',');
+	           lcd_putint(178, 178, BLACK, credit % 100);
+	           lcd_puts(198, 178, BLACK, " euros");
+
+	           lcd_puts(106, 210, BLACK, "Inserte monedas");
+
+}
+//Comunes
+lcd_puts(32, 80, BLACK, "Estancia minima:  20 minutos");
+lcd_puts(32, 104, BLACK, "Estancia maxima: 240 minutos");
+
+
+
 
 
 
@@ -692,27 +779,16 @@ void showTariffScreen(uint8 placeNum, uint16 credit)
     lcd_putint_x2(194, 142, BLACK, placeNum);
 
 
-    //Credito
-    lcd_puts(88, 178, BLACK, "Credito: ");
-    lcd_putint(154, 178, BLACK, credit / 100);
-    lcd_putchar(162, 178, BLACK, ',');
-    lcd_putint(178, 178, BLACK, credit % 100);
-    lcd_puts(198, 178, BLACK, " euros");
+
 
     //Fecha Fin
     lcd_puts(50, 194, BLACK, " Fin: ");
-    //saco tiempo actual
-    rtc_gettime(&actual_time);
-    //Calculo el tiempo final
-    rtc_time_t endTime_aux = actual_time;
-    // Aplico los creditos al auxiliar
-    apply_credits(&endTime_aux, credit);
 
-    // Mostramos la hora
-    show_date(100, 194, endTime_aux);
 
     // Mensajes finales
-    lcd_puts(106, 210, BLACK, "Inserte monedas");
+
     lcd_puts(48, 222, BLACK, "Pulse la pantalla para aceptar");
+
+
 
 }

@@ -32,4 +32,6 @@ void lcd_putint_time(uint16 x, uint16 y, uint16 color, uint8 num);
 //Funcion para mostar la hora
 void show_date(int x, int y, rtc_time_t actual_time);
 
+//Funcion para comprobar si nos encontramos dentro de los horarios disponibles
+boolean is_on_time(rtc_time_t* time);
 #endif /* EXTRA_FUCTIONS_H_ */

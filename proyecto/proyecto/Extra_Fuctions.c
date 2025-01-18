@@ -96,7 +96,7 @@ void apply_credits(rtc_time_t* time, uint16 credits) {
     time->min = total_minutes % 60;
 
     // Ajustar todos los campos
-    adjust_rtc_time(time);
+    adjust_rtc_time(&time);
 }
 
 void show_date(int x, int y, rtc_time_t actual_time){
@@ -117,10 +117,22 @@ void show_date(int x, int y, rtc_time_t actual_time){
 
 void lcd_putint_time(uint16 x, uint16 y, uint16 color, uint8 num) {
     if (num < 10) {
-        lcd_putchar(x, y, color, '0');
-        lcd_putint(x + 10, y, color, num);
+        lcd_putint(x, y, color, 0);
+        lcd_putint(x + 8, y, color, num);
     }
     else {
         lcd_putint(x, y, color, num);
     }
+}
+boolean is_on_time(rtc_time_t* time){
+	switch(time->wday){//1  dom, 7 sab
+	case 1:
+		return time->hour<19 && time->hour>=9;//domingo de 9:00 - 19:00
+		break;
+	case 7:
+		return time->hour<15 && time->hour>=9;//sabado de 9:00 - 15:00
+	default:
+		return time->hour<21 && time->hour>=9;// Resto de dias de 9:00 - 21:00
+		break;
+	}
 }
